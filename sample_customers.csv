@@ -1,0 +1,4 @@
+CreditScore,Geography,Gender,Age,Tenure,Balance,NumOfProducts,HasCrCard,IsActiveMember,EstimatedSalary,Complain,Satisfaction.Score,Card.Type,Point.Earned
+650,France,Female,40,5,50000.0,2,1,1,70000.0,0,6.0,Gold,250
+720,Germany,Male,30,3,0.0,1,0,0,48000.0,1,4.5,Silver,100
+580,Spain,Female,50,8,100000.0,3,1,1,90000.0,0,7.0,Diamond,800

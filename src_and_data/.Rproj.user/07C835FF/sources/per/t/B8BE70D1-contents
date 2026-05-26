@@ -1,0 +1,197 @@
+---
+title: "data_processing"
+output: html_document
+date: "2025-05-14"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(gridExtra)
+```
+#1. Tiền xử lý dữ liệu
+
+**Đọc dữ liệu từ file csv**
+```{r}
+data = read.csv("Customer-Churn-Records.csv", sep = ',')
+```
+
+```{r}
+head(data)
+```
+**Mô tả dữ liệu**
+
+-   **Exited: khách hàng có rời khỏi ngân hàng hay không.***
+
+-   RowNumber: tương ứng với số bản ghi (hàng) và không ảnh hưởng đến đầu ra.
+
+-   CustomerId: chứa các giá trị ngẫu nhiên và không ảnh hưởng đến việc khách hàng rời khỏi ngân hàng.
+
+-   Surname: họ của khách hàng không ảnh hưởng đến quyết định rời ngân hàng của họ.
+
+-   CreditScore: có thể ảnh hưởng đến việc rời bỏ khách hàng, vì khách hàng có điểm tín dụng cao hơn sẽ ít có khả năng rời ngân hàng hơn.
+
+-   Geography: vị trí của khách hàng có thể ảnh hưởng đến quyết định rời ngân hàng của họ.
+
+-   Gender: thật thú vị khi khám phá xem liệu giới tính có đóng vai trò gì trong việc khách hàng rời bỏ ngân hàng hay không.
+
+-   Age: điều này chắc chắn có liên quan, vì khách hàng lớn tuổi ít có khả năng rời khỏi ngân hàng của họ hơn những người trẻ tuổi.
+
+-   Tenure: đề cập đến số năm mà khách hàng đã là khách hàng của ngân hàng. Thông thường, khách hàng lớn tuổi trung thành hơn và ít có khả năng rời bỏ ngân hàng.
+
+-   Balance: cũng là một chỉ báo rất tốt về tình trạng rời bỏ khách hàng, vì những người có số dư trong tài khoản cao hơn sẽ ít rời khỏi ngân hàng hơn so với những người có số dư thấp hơn.
+
+-   NumOfProducts: đề cập đến số lượng sản phẩm mà khách hàng đã mua qua ngân hàng.
+
+-   HasCrCard: biểu thị khách hàng có thẻ tín dụng hay không. Cột này cũng có liên quan vì những người có thẻ tín dụng ít có khả năng rời khỏi ngân hàng hơn.
+
+-   IsActiveMember: khách hàng đang hoạt động ít có khả năng rời khỏi ngân hàng.
+
+-   EstimatedSalary: cũng như số dư, những người có mức lương thấp hơn có nhiều khả năng rời ngân hàng hơn so với những người có mức lương cao hơn.
+
+-   Complain: khách hàng có khiếu nại hay không.
+
+-   Satisfaction Score: Điểm do khách hàng cung cấp cho việc giải quyết khiếu nại của họ.
+
+-   Card Type: loại thẻ mà khách hàng nắm giữ.
+
+-   Points Earned: số điểm mà khách hàng nhận được khi sử dụng thẻ tín dụng.
+
+
+
+
+## 1.1. Loại bỏ các giá trị NA
+```{r}
+data <- drop_na(data)
+colSums(is.na(data))
+```
+**Ở đây ta có thể thấy được các kiểu dữ liệu của các cột**
+```{r}
+str(data)
+```
+
+```{r}
+ggplot(data, aes(x=Age)) +
+  geom_bar()
+```
+
+
+
+## 1.2. Tìm kiếm và xử lý các ngoại lệ
+
+- Trước tiên chọn ra các cột numeric để vẽ các biểu đồ cho biến liên tục
+
+```{r}
+df_numeric <- data %>%
+  select_if(is.numeric)
+df_numeric
+```
+
+- Để biết được các ngoại lệ ta sẽ vẽ các biểu đồ boxplot của các cột điểu kiểm tra outliners
+
+```{r}
+# Boxplot của CreditScore
+sub1 <- ggplot(data, aes(x=CreditScore)) +
+  geom_boxplot() +
+  labs(
+    title = "Boxplot CreditScore",
+    x = "CreditScore",
+    y = "Values"
+  )
+
+# Boxplot của Age
+sub2 <- ggplot(data, aes(x=Age)) +
+  geom_boxplot() +
+  labs(
+    title = "Boxplot Age",
+    x = "Age",
+    y = "Values"
+  )
+
+# Boxplot của Balance
+sub3 <- ggplot(data, aes(x=Balance)) +
+  geom_boxplot() +
+  labs(
+    title = "Boxplot Balance",
+    x = "Balance",
+    y = "Values"
+  )
+
+# Boxplot của EstimatedSalary
+sub4 <- ggplot(data, aes(x=EstimatedSalary)) +
+  geom_boxplot() +
+  labs(
+    title = "Boxplot EstimatedSalary",
+    x = "EstimatedSalary",
+    y = "Values"
+  )
+
+# Boxplot của Point.Earned
+sub5 <- ggplot(data, aes(x=Point.Earned)) +
+  geom_boxplot() +
+  labs(
+    title = "Boxplot Point.Earned",
+    x = "Point.Earned",
+    y = "Values"
+  )
+grid.arrange(sub1, sub2, sub3, sub4, sub5, ncol = 2)
+```
+- Dựa trên các biểu đồ boxplot, thấy rõ được rằng các đặc trưng CreditScore và Age có rất nhiều ngoại lệ, nên cần phải xử lý.
+
+**Thực hiện loại bỏ ngoại lai của CreditScore và Age**
+```{r}
+# Loại bỏ ngoại lai của CreditScore 
+Q1 <- quantile(data$CreditScore, 0.25, na.rm=TRUE)
+Q3 <- quantile(data$CreditScore, 0.75, na.rm=TRUE)
+IQR <- Q3 - Q1
+lower_bound <- Q1 - 1.5 * IQR
+upper_bound <- Q3 + 1.5 * IQR
+
+data_processed <- data %>%
+  filter(CreditScore >= lower_bound & CreditScore <= upper_bound)
+
+# Loại bỏ ngoại lai trên Age
+Q1 <- quantile(data_processed$Age, 0.25, na.rm=TRUE)
+Q3 <- quantile(data_processed$Age, 0.75, na.rm=TRUE)
+IQR <- Q3 - Q1
+lower_bound <- Q1 - 1.5 * IQR
+upper_bound <- Q3 + 1.5 * IQR
+
+temp_data <- data_processed %>%
+  filter(Age >= lower_bound & Age <= upper_bound)
+
+
+ggplot(temp_data, aes(x=Age)) +
+  geom_boxplot() +
+  labs(
+    title = "Boxplot Age",
+    x = "Age",
+    y = "Values"
+  )
+
+ggplot(temp_data, aes(x=CreditScore)) +
+  geom_boxplot() +
+  labs(
+    title = "Boxplot CreditScore",
+    x = "Age",
+    y = "Values"
+  )
+```
+- Qua kiểm tra đã thấy các ngoại lệ đã được bỏ theo IQR.
+
+
+
+```{r}
+# Kiểm tra kích thước dữ liệu sau khi loại bỏ ngoại lai
+dim(temp_data)
+```
+
+**Lưu lại dữ liệu để sử dụng trong các công đoạn sau**
+```{r}
+write.csv(temp_data, "data_processed.csv", row.names = FALSE) #data_processed là file csv đã được tiền xử lý cơ bản
+```
+- Chỉ tiền xử lý cơ bản, trong mỗi công đoạn phân tích và modeling, các xử lý dữ liệu riêng sẽ được thực hiện ở mỗi quá trình khác nhau (Khai phá dữ liệu sẽ được xử lý khác, Modeling cũng sẽ được chuẩn hoá và xử lý khác), nhằm tránh xung đột giữa các quá trình phân tích và khai phá dữ liệu.
+

@@ -1,0 +1,1092 @@
+---
+title: "Data_Analyst"
+output: html_document
+date: "2025-05-16"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+```
+
+<--DATA PREPROCESSING->
+
+```{r}
+# Các thư viện cần thiết
+packages <- c("tidyverse", "gridExtra", "corrplot", "vcd", "stats", "plotly", "smotefamily", "factoextra", "caret", "reshape2")
+
+#Hàm kiểm tra các thư viện
+install_if_missing <- function(pkg) {
+  if (!requireNamespace(pkg, quietly = TRUE)) {
+    install.packages(pkg, dependencies = TRUE)
+  }
+  library(pkg, character.only = TRUE)
+}
+
+lapply(packages, install_if_missing)
+```
+#1. Tiền xử lý dữ liệu
+
+**Đọc dữ liệu từ file csv**
+```{r}
+data = read.csv("Customer-Churn-Records.csv", sep = ',')
+```
+
+```{r}
+head(data)
+```
+**Mô tả dữ liệu**
+
+-   **Exited: khách hàng có rời khỏi ngân hàng hay không.***
+
+-   RowNumber: tương ứng với số bản ghi (hàng) và không ảnh hưởng đến đầu ra.
+
+-   CustomerId: chứa các giá trị ngẫu nhiên và không ảnh hưởng đến việc khách hàng rời khỏi ngân hàng.
+
+-   Surname: họ của khách hàng không ảnh hưởng đến quyết định rời ngân hàng của họ.
+
+-   CreditScore: có thể ảnh hưởng đến việc rời bỏ khách hàng, vì khách hàng có điểm tín dụng cao hơn sẽ ít có khả năng rời ngân hàng hơn.
+
+-   Geography: vị trí của khách hàng có thể ảnh hưởng đến quyết định rời ngân hàng của họ.
+
+-   Gender: thật thú vị khi khám phá xem liệu giới tính có đóng vai trò gì trong việc khách hàng rời bỏ ngân hàng hay không.
+
+-   Age: điều này chắc chắn có liên quan, vì khách hàng lớn tuổi ít có khả năng rời khỏi ngân hàng của họ hơn những người trẻ tuổi.
+
+-   Tenure: đề cập đến số năm mà khách hàng đã là khách hàng của ngân hàng. Thông thường, khách hàng lớn tuổi trung thành hơn và ít có khả năng rời bỏ ngân hàng.
+
+-   Balance: cũng là một chỉ báo rất tốt về tình trạng rời bỏ khách hàng, vì những người có số dư trong tài khoản cao hơn sẽ ít rời khỏi ngân hàng hơn so với những người có số dư thấp hơn.
+
+-   NumOfProducts: đề cập đến số lượng sản phẩm mà khách hàng đã mua qua ngân hàng.
+
+-   HasCrCard: biểu thị khách hàng có thẻ tín dụng hay không. Cột này cũng có liên quan vì những người có thẻ tín dụng ít có khả năng rời khỏi ngân hàng hơn.
+
+-   IsActiveMember: khách hàng đang hoạt động ít có khả năng rời khỏi ngân hàng.
+
+-   EstimatedSalary: cũng như số dư, những người có mức lương thấp hơn có nhiều khả năng rời ngân hàng hơn so với những người có mức lương cao hơn.
+
+-   Complain: khách hàng có khiếu nại hay không.
+
+-   Satisfaction Score: Điểm do khách hàng cung cấp cho việc giải quyết khiếu nại của họ.
+
+-   Card Type: loại thẻ mà khách hàng nắm giữ.
+
+-   Points Earned: số điểm mà khách hàng nhận được khi sử dụng thẻ tín dụng.
+
+
+
+
+## 1.1. Loại bỏ các giá trị NA
+```{r}
+data <- drop_na(data)
+colSums(is.na(data))
+```
+**Ở đây ta có thể thấy được các kiểu dữ liệu của các cột**
+```{r}
+str(data)
+```
+
+## 1.2. Tìm kiếm và xử lý các ngoại lệ
+
+- Trước tiên chọn ra các cột numeric để vẽ các biểu đồ cho biến liên tục
+
+```{r}
+df_numeric <- df %>%
+  select_if(is.numeric)
+df_numeric
+```
+
+- Để biết được các ngoại lệ ta sẽ vẽ các biểu đồ boxplot của các cột điểu kiểm tra outliners
+
+```{r}
+# Boxplot của CreditScore
+sub1 <- ggplot(df_numeric, aes(x=CreditScore)) +
+  geom_boxplot() +
+  labs(
+    title = "Boxplot CreditScore",
+    x = "CreditScore",
+    y = "Values"
+  )
+
+# Boxplot của Age
+sub2 <- ggplot(df_numeric, aes(x=Age)) +
+  geom_boxplot() +
+  labs(
+    title = "Boxplot Age",
+    x = "Age",
+    y = "Values"
+  )
+
+# Boxplot của Balance
+sub3 <- ggplot(df_numeric, aes(x=Balance)) +
+  geom_boxplot() +
+  labs(
+    title = "Boxplot Balance",
+    x = "Balance",
+    y = "Values"
+  )
+
+# Boxplot của EstimatedSalary
+sub4 <- ggplot(df_numeric, aes(x=EstimatedSalary)) +
+  geom_boxplot() +
+  labs(
+    title = "Boxplot EstimatedSalary",
+    x = "EstimatedSalary",
+    y = "Values"
+  )
+
+# Boxplot của Point.Earned
+sub5 <- ggplot(df_numeric, aes(x=Point.Earned)) +
+  geom_boxplot() +
+  labs(
+    title = "Boxplot Point.Earned",
+    x = "Point.Earned",
+    y = "Values"
+  )
+grid.arrange(sub1, sub2, sub3, sub4, sub5, ncol = 2)
+```
+- Dựa trên các biểu đồ boxplot, thấy rõ được rằng các đặc trưng CreditScore và Age có rất nhiều ngoại lệ, nên cần phải xử lý.
+
+**Thực hiện loại bỏ ngoại lai của CreditScore và Age**
+```{r}
+# Loại bỏ ngoại lai của CreditScore
+Q1 <- quantile(data$CreditScore, 0.25, na.rm=TRUE)
+Q3 <- quantile(data$CreditScore, 0.75, na.rm=TRUE)
+IQR <- Q3 - Q1
+lower_bound <- Q1 - 1.5 * IQR
+upper_bound <- Q3 + 1.5 * IQR
+
+data_processed <- data %>%
+  filter(CreditScore >= lower_bound & CreditScore <= upper_bound)
+
+ggplot(data_processed, aes(x=CreditScore)) +
+  geom_boxplot() +
+  labs(
+    title = "Boxplot CreditScore",
+    x = "CreditScore",
+    y = "Values"
+  )
+
+# Loại bỏ ngoại lai của Age
+Q1 <- quantile(data$Age, 0.25, na.rm=TRUE)
+Q3 <- quantile(data$Age, 0.75, na.rm=TRUE)
+IQR <- Q3 - Q1
+lower_bound <- Q1 - 1.5 * IQR
+upper_bound <- Q3 + 1.5 * IQR
+
+data_processed <- data_processed %>%
+  filter(Age >= lower_bound & Age <= upper_bound)
+
+ggplot(data_processed, aes(x=Age)) +
+  geom_boxplot() +
+  labs(
+    title = "Boxplot Age",
+    x = "Age",
+    y = "Values"
+  )
+```
+- Qua kiểm tra đã thấy các ngoại lệ đã được bỏ theo IQR.
+
+```{r}
+# Kiểm tra kích thước dữ liệu sau khi loại bỏ ngoại lai
+dim(data_processed)
+```
+
+**Lưu lại dữ liệu để sử dụng trong các công đoạn sau**
+```{r}
+write.csv(data_processed, "data_processed.csv", row.names = FALSE) #data_processed là file csv đã được tiền xử lý cơ bản
+```
+- Chỉ tiền xử lý cơ bản, trong mỗi công đoạn phân tích và modeling, các xử lý dữ liệu riêng sẽ được thực hiện ở mỗi quá trình khác nhau (Khai phá dữ liệu sẽ được xử lý khác, Modeling cũng sẽ được chuẩn hoá và xử lý khác), nhằm tránh xung đột giữa các quá trình phân tích và khai phá dữ liệu.
+
+
+<--EDA-->
+#2. Khai phá dữ liệu
+
+#2.1: Thống kê mô tả
+
+```{r}
+data_eda <- data
+cat("Thống kê mô tả:\n")
+summary(data_eda)
+```
+Nhằm xem bối cảnh của dữ liệu từ đó cung cấp thống kê cơ bản (min, max, trung bình, trung vị, tứ phân vị) cho tất cả biến trong dữ liệu, giúp nắm tổng quan phân phối và đặc điểm dữ liệu => phát hiện giá trị bất thường (nếu có) và tỷ lệ churn.
+
+#2.2. Phân tích tương quan giữa các biến:
+```{r}
+cat("\nPhân tích tương quan giữa các biến:\n")
+
+#Tương quan Pearson giữa các số 
+numerical_cols <- c("CreditScore", "Age", "Balance", "EstimatedSalary", "Tenure", "NumOfProducts", "Point.Earned")
+cor_matrix <- cor(data_eda[, numerical_cols], method = "pearson", use = "complete.obs")
+cat("\nMa trận tương quan Pearson cho biến số:\n")
+print(round(cor_matrix, 2))
+
+corrplot(cor_matrix, method = "color", type = "upper", tl.cex = 0.8, addCoef.col = "black", number.cex = 0.7, 
+         title = "Tương quan Pearson giữa các biến số", mar = c(0, 0, 2, 0))
+
+#Tương quan Cramer's V giữa các biến phân loại
+categorical_cols <- c("Geography", "Gender", "HasCrCard", "IsActiveMember", "Card.Type", "Complain", "Satisfaction.Score", "Exited")
+cramer_v <- matrix(NA, nrow = length(categorical_cols), ncol = length(categorical_cols), 
+                   dimnames = list(categorical_cols, categorical_cols))
+
+for (i in seq_along(categorical_cols)) {
+  for (j in seq_along(categorical_cols)) {
+    if (i <= j) {
+      tbl <- table(data_eda[[categorical_cols[i]]], data_eda[[categorical_cols[j]]])
+      cramer_v[i, j] <- assocstats(tbl)$cramer
+      cramer_v[j, i] <- cramer_v[i, j]
+    }
+  }
+}
+
+cat("\nMa trận Cramer's V cho biến phân loại:\n")
+print(round(cramer_v, 2))
+
+corrplot(cramer_v, method = "color", type = "upper", tl.cex = 0.8, addCoef.col = "black", number.cex = 0.7, 
+         title = "Cramer's V giữa các biến phân loại", mar = c(0, 0, 2, 0))
+```
+# Tương tương quan biến số: 
+Tương quan mạnh nhất: Age và NumOfProducts (~-0.3).
+=> Không có mối quan hệ tuyến tính mạnh giữa các biến số, phù hợp để phân tích độc lập.
+
+# Tương quan biến phân loại: 
+Complain là yếu tố mạnh liên quan đến churn, cần chú ý trong phân tích tiếp theo.
+
+#2.3. Phân tích đơn biến: Xem phân phối từng biến để tìm mẫu hoặc bất thường liên quan đến churn
+# a. Phân tích biến phân loại 
+```{r}
+group1_cols <- c("Satisfaction.Score", "IsActiveMember", "Card.Type") 
+group2_cols <- c("HasCrCard", "Complain","Gender", "Exited", "Geography") 
+
+#Biểu đồ cột phân phối biến phân loại
+plots_group1 <- list()
+for (col in group1_cols) {
+  data_plot <- data_eda %>%
+    count(!!sym(col)) %>%
+    mutate(percentage = n / sum(n) * 100)
+  
+  p <- ggplot(data_plot, aes(x = as.factor(!!sym(col)), y = n, fill = as.factor(!!sym(col)))) +
+    geom_bar(stat = "identity") +
+    geom_text(aes(label = sprintf("%d (%.2f%%)", n, percentage)), vjust = 1, size = 2.75) +
+    ggtitle(paste("Phân phối", col)) +
+    xlab(col) +
+    ylab("Số lượng") +
+    theme_minimal() +
+    theme(legend.position = "none", text = element_text(size = 6))
+  plots_group1[[col]] <- p
+}
+
+#Biểu đồ cột phân phối biến số
+plots_group2 <- list()
+for (col in group2_cols) {
+  data_plot <- data_eda %>%
+    count(!!sym(col)) %>%
+    mutate(percentage = n / sum(n) * 100)
+  
+  p <- ggplot(data_plot, aes(x = as.factor(!!sym(col)), y = n, fill = as.factor(!!sym(col)))) +
+    geom_bar(stat = "identity") +
+    geom_text(aes(label = sprintf("%d (%.2f%%)", n, percentage)), vjust = 1, size = 2.75) +
+    ggtitle(paste("Phân phối", col)) +
+    xlab(col) +
+    ylab("Số lượng") +
+    theme_minimal() +
+    theme(legend.position = "none", text = element_text(size = 6))
+  plots_group2[[col]] <- p
+}
+
+grid.arrange(grobs = plots_group1, ncol = 2, top = "Biến phân loại - Đồng đều")
+grid.arrange(grobs = plots_group2, ncol = 2, top = "Biến phân loại - Không đồng đều")
+```
+***Biến phân loại:***
+# Nhóm 1 (Satisfaction.Score, IsActiveMember, Card.Type):
+Kết quả: Phân phối khá đồng đều, Tỷ lệ chênh lệch thấp, ít dấu hiệu bất thường.
+
+# Nhóm 2 (HasCrCard, Complain, Gender, Exited, Geography):
+Kết quả: Tỷ lệ chênh lệch cao. Đặc biệt ở các biến như Complain, Exited có tỷ lệ mất cân đối, cần phân tích sâu hơn.
+
+#b. Phân tích biến số 
+```{r}
+discrete_cols <- c("Tenure", "NumOfProducts") 
+continuous_cols <- c("CreditScore", "Age", "Balance", "EstimatedSalary", "Point.Earned") 
+plots_num <- list()
+
+#Biểu đồ cột phân tích biến số rời rạc
+plots_discrete <- list()
+for (col in discrete_cols) {
+  data_plot <- data_eda %>%
+    count(!!sym(col)) %>%
+    mutate(percentage = n / sum(n) * 100)
+  
+  p <- ggplot(data_plot, aes(x = as.factor(!!sym(col)), y = n, fill = as.factor(!!sym(col)))) +
+    geom_bar(stat = "identity") +
+    geom_text(aes(label = sprintf("%d (%.2f%%)", n, percentage)), vjust = -0.1, size = 2.5) +
+    ggtitle(paste("Phân phối", col)) +
+    xlab(col) +
+    ylab("Số lượng") +
+    theme_minimal() +
+    theme(legend.position = "none", text = element_text(size = 8))
+  plots_discrete[[col]] <- p
+}
+
+#Biểu đồ cột phân tích biến số liên tục 
+plots_continuous <- list()
+for (col in continuous_cols) {
+  p <- ggplot(data_eda, aes(x = !!sym(col))) +
+    geom_histogram(bins = 30, fill = "skyblue", color = "black") +
+    ggtitle(paste("Phân phối", col)) +
+    xlab(col) +
+    ylab("Số lượng") +
+    theme_minimal() +
+    theme(text = element_text(size = 8))
+  plots_continuous[[col]] <- p
+}
+
+grid.arrange(grobs = plots_discrete, ncol = 1, top = "Phân phối biến rời rạc (Bar chart)")
+grid.arrange(grobs = plots_continuous, ncol = 3, top = "Phân phối biến liên tục (Histogram)")
+```
+***Biến số:***
+# Biến rời rạc (Tenure, NumOfProducts):
+Kết quả: Phân phối hợp lý, không có giá trị bất thường rõ rệt.
+
+# Biến liên tục (CreditScore, Age, Balance, EstimatedSalary, Point.Earned):
+Kết quả: Balance có nhiều giá trị 0, cần xem xét thêm khi phân tích churn.
+
+#2.4 Phân tích hai biến: Xem mối quan hệ giữa các biến và Exited
+```{r}
+categorical_cols <- c("Geography", "Gender", "HasCrCard", "IsActiveMember", "Card.Type", "Complain", "Satisfaction.Score")
+plots_cat <- list()
+
+# Chú thích biểu đồ cột x=0 (không), x=1 (có), màu "Đỏ" = Nhóm rời, , màu "Xanh" = Nhóm ở lại 
+# Chú thích Boxplot x=0 (không), x=1 (có), màu "Đỏ" = Nhóm rời, , màu "Xanh" = Nhóm ở lại
+
+#Biểu đồ cột phân tích biến phân loại với Exited
+for (col in categorical_cols) {
+  data_plot <- data_eda %>%
+    count(!!sym(col), Exited) %>%
+    group_by(!!sym(col)) %>%
+    mutate(percentage = n / sum(n) * 100)
+  
+  p <- ggplot(data_plot, aes(x = as.factor(!!sym(col)), y = n, fill = as.factor(Exited))) +
+    geom_bar(stat = "identity", position = "fill") +
+    scale_fill_brewer(palette = "Set1", labels = c("Không churn", "Churn")) +
+    geom_text(aes(label = sprintf("%.2f%%", percentage)), position = position_fill(vjust = 0.5), size = 2.5) +
+    ggtitle(paste("Churn theo", col)) +
+    xlab(col) + 
+    ylab("Tỷ lệ") +
+    theme_minimal() +
+    theme(legend.position = "none", text = element_text(size = 8))
+  plots_cat[[col]] <- p
+}
+
+#Boxplot phân tích biến phân loại với Exited
+for (col in numerical_cols) {
+  p <- ggplot(data_eda, aes(x = as.factor(Exited), y = !!sym(col), fill = as.factor(Exited))) +
+    geom_boxplot() +
+    scale_fill_brewer(palette = "Set1", labels = c("Không churn", "Churn")) +
+    ggtitle(paste(col, "theo Exited")) +
+    xlab("Exited") +
+    ylab(col) +
+    theme_minimal() +
+    theme(legend.position = "none", text = element_text(size = 8))
+  plots_num[[col]] <- p
+}
+
+grid.arrange(grobs = plots_cat, ncol = 3, top = "Phân tích biến phân loại vs Exited")
+grid.arrange(grobs = plots_num, ncol = 3, top = "Phân tích biến số vs Exited")
+```
+***Biến phân loại vs Exited:***
+- Complain: ~99% khách hàng phàn nàn (Complain=1) churn (Exited=1).
+- Geography: Germany có tỷ lệ churn cao (~32%) so với France (~16%) và Spain (~17%).
+- Gender: Nữ churn cao hơn nam (~25% vs ~16%).
+=> Complain là yếu tố dự báo mạnh cho churn; Geography và Gender cũng có ảnh hưởng đáng kể.
+
+***Biến số vs Exited:***
+- Boxplot cho thấy Age và Balance là các yếu tố ảnh hưởng đến churn
+
+#2.5 : Thống kê suy diễn
+```{r}
+# 1. Kiểm định t-test cho biến số (từ histogram)
+cat("\n1. Kiểm định t-test cho biến số vs Exited:\n")
+numerical_cols <- c("Age", "Balance")
+for (col in numerical_cols) {
+  cat(sprintf("\nt-test cho %s vs Exited:\n", col))
+  t_test <- t.test(data_eda[[col]] ~ data_eda$Exited, var.equal = FALSE)
+  print(t_test)
+}
+
+# 2. Kiểm định chi-square cho biến phân loại (từ bar chart)
+cat("\n2. Kiểm định chi-square cho biến phân loại vs Exited:\n")
+categorical_cols <- c("Complain", "Geography", "Gender")
+for (col in categorical_cols) {
+  cat(sprintf("\nChi-square cho %s vs Exited:\n", col))
+  chi_square <- chisq.test(table(data_eda[[col]], data_eda$Exited))
+  print(chi_square)
+}
+```
+
+***Kiểm định t-test (biến số vs Exited):***
+# Kết quả:
+- Age: p-value < 0.001, khác biệt trung bình tuổi giữa churn và không churn có ý nghĩa thống kê.
+- Balance: p-value < 0.001, số dư trung bình khác biệt đáng kể.
+=> Age và Balance là các yếu tố số quan trọng liên quan đến churn.
+
+***Kiểm định chi-square (biến phân loại vs Exited):***
+# Kết quả:
+- Complain: p-value < 0.001, mối quan hệ rất mạnh với Exited.
+- Geography, Gender: p-value < 0.05, có mối quan hệ đáng kể với Exited.
+=> Complain, Geography, Gender đều có ảnh hưởng thống kê đến churn.
+
+#Tổng kết: Phân tích cho thấy Complain là yếu tố mạnh nhất dự báo churn, tiếp theo là Age, Balance, Geography, và Gender.  
+
+<--PHÂN TÍCH HÀNH VI KHÁCH HÀNG NGÂN HÀNG-->
+#3. Phân tích hành vi khách hàng ngân hàng
+
+#3.1 Phân bố số lượng sản phẩm sử dụng
+
+**Phân bố này cho thấy ngân hàng cần tập trung vào nhóm khách hàng sử dụng 1 sản phẩm (chiếm đa số) để khuyến khích họ sử dụng thêm sản phẩm, nhưng phải đảm bảo trải nghiệm mượt mà để tránh tăng nguy cơ churn.**
+```{r}
+
+# Tính phân bố NumOfProducts
+product_dist <- data %>%
+  group_by(NumOfProducts) %>%
+  summarise(
+    Count = n(),
+    Proportion = n() / nrow(data) * 100
+  )
+
+print(product_dist)
+```
+
+```{r}
+# Biểu đồ cột
+p1 <- ggplot(product_dist, aes(x = factor(NumOfProducts), y = Proportion)) +
+  geom_bar(stat = "identity", fill = "green") +
+  geom_text(aes(label = sprintf("%.1f%%", Proportion)), vjust = -0.5) +
+  labs(title = "Phân bố Số lượng Sản phẩm Sử dụng",
+       x = "Số lượng Sản phẩm",
+       y = "Tỷ lệ (%)") +
+  theme_minimal()
+print(p1)
+ggsave("product_distribution.png", plot = p1, width = 6, height = 4)
+```
+#3.2 Tác động của số lượng sản phẩm đến 
+
+**Biểu đồ chỉ ra rằng việc thúc đẩy sử dụng nhiều sản phẩm cần đi kèm với cải thiện chất lượng dịch vụ để tránh hiệu ứng ngược (tăng churn). Dữ liệu này có thể được sử dụng để xây dựng các chiến lược giữ chân khách hàng, như nhắm mục tiêu vào nhóm sử dụng 1 sản phẩm để tăng gắn kết, hoặc cải thiện trải nghiệm cho nhóm 3–4 sản phẩm.**
+```{r}
+# Tính tỷ lệ churn theo NumOfProducts
+churn_by_products <- data %>%
+  group_by(NumOfProducts) %>%
+  summarise(
+    Total = n(),
+    Churned = sum(Exited),
+    ChurnRate = mean(Exited) * 100
+  )
+
+print(churn_by_products)
+
+# Biểu đồ cột
+p2 <- ggplot(churn_by_products, aes(x = factor(NumOfProducts), y = ChurnRate)) +
+  geom_bar(stat = "identity", fill = "salmon") +
+  geom_text(aes(label = sprintf("%.1f%%", ChurnRate)), vjust = -0.5) +
+  labs(title = "Tỷ lệ Churn theo Số lượng Sản phẩm",
+       x = "Số lượng Sản phẩm",
+       y = "Tỷ lệ Churn (%)") +
+  theme_minimal()
+print(p2)
+ggsave("churn_by_products.png", plot = p2, width = 6, height = 4)
+```
+#3.3 Sử dụng thẻ tín dụng và loại thẻ
+
+**Biểu đồ nhấn mạnh rằng việc cải thiện ưu đãi cho thẻ DIAMOND có thể giảm churn ở phân khúc khách hàng cao cấp, một nhóm quan trọng về giá trị tài chính. Dữ liệu chỉ ra rằng không phải tất cả sản phẩm đều có tác động tích cực đến giữ chân khách hàng, và ngân hàng cần cá nhân hóa dịch vụ dựa trên loại thẻ.**
+
+```{r}
+# Tỷ lệ khách hàng sử dụng thẻ tín dụng
+crcard_dist <- data %>%
+  group_by(HasCrCard) %>%
+  summarise(
+    Count = n(),
+    Proportion = n() / nrow(data) * 100
+  )
+
+print(crcard_dist)
+
+# Tỷ lệ churn theo HasCrCard
+churn_by_crcard <- data %>%
+  group_by(HasCrCard) %>%
+  summarise(
+    Total = n(),
+    Churned = sum(Exited),
+    ChurnRate = mean(Exited) * 100
+  )
+
+print(churn_by_crcard)
+
+# Tỷ lệ churn theo Card.Type
+churn_by_cardtype <- data %>%
+  group_by(Card.Type) %>%
+  summarise(
+    Total = n(),
+    Churned = sum(Exited),
+    ChurnRate = mean(Exited) * 100
+  )
+
+print(churn_by_cardtype)
+
+# Biểu đồ cột cho HasCrCard
+p3 <- ggplot(churn_by_crcard, aes(x = factor(HasCrCard), y = ChurnRate)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  geom_text(aes(label = sprintf("%.1f%%", ChurnRate)), vjust = -0.5) +
+  labs(title = "Tỷ lệ Churn theo Thẻ Tín dụng",
+       x = "Có Thẻ Tín dụng (0: Không, 1: Có)",
+       y = "Tỷ lệ Churn (%)") +
+  theme_minimal()
+print(p3)
+# Biểu đồ cột cho Card.Type
+p4 <- ggplot(churn_by_cardtype, aes(x = Card.Type, y = ChurnRate)) +
+  geom_bar(stat = "identity", fill = "lightpink") +
+  geom_text(aes(label = sprintf("%.1f%%", ChurnRate)), vjust = -0.5) +
+  labs(title = "Tỷ lệ Churn theo Loại Thẻ",
+       x = "Loại Thẻ",
+       y = "Tỷ lệ Churn (%)") +
+  theme_minimal()
+print(p4)
+# Lưu biểu đồ
+ggsave("churn_by_crcard.png", plot = p3, width = 6, height = 4)
+ggsave("churn_by_cardtype.png", plot = p4, width = 6, height = 4)
+```
+#3.4 Mức độ tích cực của khách hàng
+
+**Biểu đồ cung cấp cơ sở cho các chiến lược giữ chân khách hàng, như khuyến khích giao dịch thường xuyên thông qua ưu đãi (miễn phí giao dịch, lãi suất ưu đãi). Phân tích làm rõ rằng hành vi sử dụng dịch vụ thường xuyên có thể được khai thác để giảm tỷ lệ churn.**
+
+```{r}
+churn_by_active <- data %>%
+  group_by(IsActiveMember) %>%
+  summarise(
+    Total = n(),
+    Churned = sum(Exited),
+    ChurnRate = mean(Exited) * 100
+  )
+
+print(churn_by_active)
+
+# Biểu đồ cột
+p5 <- ggplot(churn_by_active, aes(x = factor(IsActiveMember), y = ChurnRate)) +
+  geom_bar(stat = "identity", fill = "lightblue") +
+  geom_text(aes(label = sprintf("%.1f%%", ChurnRate)), vjust = -0.5) +
+  labs(title = "Tỷ lệ Churn theo Mức độ Tích cực",
+       x = "Thành viên Tích cực (0: Không, 1: Có)",
+       y = "Tỷ lệ Churn (%)") +
+  theme_minimal()
+print(p5)
+ggsave("churn_by_active.png", plot = p5, width = 6, height = 4)
+```
+#3.5 Điểm tích luỹ và chương trình khách hàng thân thiết
+
+**Kết quả chỉ ra rằng chương trình tích điểm không phải là đặc trưng mạnh trong dự đoán churn, nhưng nó cũng nhấn mạnh cơ hội cải thiện. Bằng cách nâng cấp chương trình tích điểm (tăng giá trị thưởng, đa dạng hóa phần thưởng), ngân hàng có thể tăng gắn kết khách hàng, từ đó giảm churn. Phân tích cung cấp một góc nhìn về hành vi tương tác với các chương trình khuyến mãi, một yếu tố quan trọng trong chiến lược giữ chân khách hàng.**
+```{r}
+# Phân tích Point.Earned theo Exited
+point_summary <- data %>%
+  group_by(Exited) %>%
+  summarise(
+    Mean_Points = mean(Point.Earned),
+    Median_Points = median(Point.Earned)
+  )
+
+print(point_summary)
+
+# Biểu đồ boxplot
+p6 <- ggplot(data, aes(x = factor(Exited), y = Point.Earned)) +
+  geom_boxplot(fill = "lightyellow") +
+  labs(title = "Phân phối Điểm Tích lũy theo Trạng thái Churn",
+       x = "Trạng thái Churn (0: Ở lại, 1: Rời bỏ)",
+       y = "Điểm Tích lũy") +
+  theme_minimal()
+print(p6)
+ggsave("points_by_exited.png", plot = p6, width = 6, height = 4)
+```
+#3.6 Mối quan hệ giữa sản phẩm và khiếu nại:
+
+**Biểu đồ cung cấp dữ liệu để xây dựng mô hình dự đoán churn với trọng số cao cho biến khiếu nại, đồng thời chỉ ra rằng cải thiện quy trình dịch vụ cho khách hàng sử dụng nhiều sản phẩm là ưu tiên hàng đầu để giảm churn. Kết quả làm rõ cách hành vi sử dụng sản phẩm ảnh hưởng đến trải nghiệm khách hàng, một yếu tố cốt lõi trong dự đoán churn.**
+```{r}
+# Tỷ lệ khiếu nại theo NumOfProducts
+complain_by_products <- data %>%
+  group_by(NumOfProducts) %>%
+  summarise(
+    Total = n(),
+    Complained = sum(Complain),
+    ComplainRate = mean(Complain) * 100
+  )
+
+print(complain_by_products)
+
+# Biểu đồ cột
+p7 <- ggplot(complain_by_products, aes(x = factor(NumOfProducts), y = ComplainRate)) +
+  geom_bar(stat = "identity", fill = "orchid") +
+  geom_text(aes(label = sprintf("%.1f%%", ComplainRate)), vjust = -0.5) +
+  labs(title = "Tỷ lệ Khiếu nại theo Số lượng Sản phẩm",
+       x = "Số lượng Sản phẩm",
+       y = "Tỷ lệ Khiếu nại (%)") +
+  theme_minimal()
+print(p7)
+ggsave("complain_by_products.png", plot = p7, width = 6, height = 4)
+```
+
+#3.7.PHÂN KHÚC KHÁCH HÀNG
+
+***Phân cụm các biến***
+
+**Lý do lựa chọn:**
+
+-  Các biến số được chọn phản ánh rõ ràng hành vi tài chính, nhân khẩu học, và mức độ tương tác của khách hàng, phù hợp để phân cụm.
+
+-  Các biến nhị phân bổ sung thông tin quan trọng (sử dụng thẻ, tích cực, khiếu nại).
+Geography và Gender cung cấp thông tin khu vực và giới tính, có thể ảnh hưởng đến hành vi tài chính.
+
+-  Exited giúp đánh giá nguy cơ rời bỏ của từng cụm, nhưng không dùng trực tiếp trong phân cụm để tránh thiên lệch.
+```{r}
+# Chọn biến cho phân cụm
+numerical_cols <- c("Age", "Tenure", "Balance", "NumOfProducts", "EstimatedSalary", 
+                    "Satisfaction.Score", "Point.Earned")
+binary_cols <- c("HasCrCard", "IsActiveMember", "Complain")
+categorical_cols <- c("Geography", "Gender")
+analysis_cols <- c(numerical_cols, binary_cols, categorical_cols, "Exited")
+
+```
+
+**Mã hoá one-hot cho các biến phân loại**
+
+-  Các biến Geography (Pháp, Đức, Tây Ban Nha) và Gender (Nam, Nữ) là chữ, nhưng thuật toán K-means chỉ làm việc với số. Vì vậy, chúng ta chuyển chúng thành số.
+
+**Chuẩn hoá dữ liệu**
+
+-  Các biến có thang đo khác nhau. Nếu không chuẩn hóa, biến có giá trị lớn như Balance sẽ lấn át các biến khác, làm kết quả phân cụm bị lệch. Chuẩn hóa giúp tất cả biến đều có "tiếng nói" ngang nhau trong thuật toán K-means.
+
+*Nhận xét dữ liệu sau chuẩn hoá:*
+-  Trung bình (Mean): Tất cả các biến đều có trung bình ~0, đúng với mục tiêu chuẩn hóa.
+
+-  Độ lệch chuẩn ~1: Giá trị dao động từ âm đến dương, cho thấy các biến đã được đưa về cùng thang đo.
+
+```{r}
+# Mã hóa one-hot cho biến phân loại
+data_encoded <- data %>%
+  mutate(Geography = as.factor(Geography), Gender = as.factor(Gender)) %>%
+  model.matrix(~ Geography + Gender - 1, data = .) %>%
+  as.data.frame()
+
+# Kết hợp dữ liệu số, nhị phân và dữ liệu đã mã hóa
+data_for_clustering <- cbind(data[, c(numerical_cols, binary_cols)], data_encoded)
+
+# Chuẩn hóa dữ liệu
+
+data_scaled <- scale(data_for_clustering)
+
+# Kiểm tra dữ liệu sau chuẩn hóa
+print("Columns in data_scaled:")
+print(colnames(data_scaled))
+summary(data_scaled)
+```
+**Xác định cụm tối ưu**
+
+-  Silhouette Method: Dựa trên điểm Silhouette trung bình đo lường mức độ gắn kết và tách biệt của các cụm.
+
+*Nhận xét*
+
+- Silhouette Plot: chọn k = 3 (điểm Silhouette cao nhất ~0.175)
+```{r}
+# Biểu đồ Silhouette
+silhouette_plot <- fviz_nbclust(data_scaled, kmeans, method = "silhouette") +
+  labs(title = "Biểu đồ Silhouette để Xác định Số Cụm Tối Ưu",
+       x = "Số cụm (k)", y = "Điểm Silhouette trung bình") 
+print(silhouette_plot)
+
+# Chọn k = 3 dựa trên kết quả trước
+k_optimal <- 3
+```
+**Thực hiện phân cụm**
+
+-  Sử dụng K-means với số cụm k_optimal = 3.
+
+- Gán nhãn cụm (1, 2, 3) cho mỗi khách hàng.
+
+*Phân bố cụm:*
+
+-  Cụm 1 là nhóm lớn nhất (4,826 khách hàng, chiếm ~50% tổng số khách hàng).
+
+-  Cụm 2 và Cụm 3 có số lượng tương đối cân bằng (2,379 và 2,421, mỗi cụm chiếm ~24–25%).
+```{r}
+# Thực hiện K-means với k_optimal = 3
+set.seed(123)
+kmeans_model <- kmeans(data_scaled, centers = k_optimal, nstart = 25)
+
+# Gán nhãn cụm vào dữ liệu
+data$Cluster <- as.factor(kmeans_model$cluster)
+
+# Kiểm tra phân bố cụm
+table(data$Cluster)
+```
+
+#3.8. Phân tích đặc điểm cụm
+
+-  Nhóm 1 và nhóm 2 (Pháp và Tây Ban Nha) là những khách hàng trung niên, không có nhiều tiền trong tài khoản, nhưng hài lòng và trung thành với ngân hàng (ít phàn nàn, ít rời bỏ). Họ có thể là những người dùng ngân hàng cho các nhu cầu cơ bản, như nhận lương hoặc trả hóa đơn.
+
+-  Nhóm 3 (Đức) là nhóm khách hàng trung niên có nhiều tiền trong tài khoản, nhưng không hài lòng (nhiều phàn nàn) và dễ rời bỏ ngân hàng. Đây là nhóm cần chú ý nhất, vì họ có khả năng tài chính tốt nhưng lại không hài lòng với dịch vụ, có thể do phí cao hoặc chăm sóc khách hàng chưa tốt.
+
+-  Khu vực là yếu tố ảnh hưởng lớn nhất đến hành vi khách hàng: khách hàng ở Đức dễ rời bỏ hơn khách hàng ở Pháp và Tây Ban Nha. Điều này cho thấy ngân hàng cần xem lại cách phục vụ ở Đức để giữ chân khách hàng.
+
+```{r}
+# Tính trung bình các biến số và nhị phân, cùng tỷ lệ rời bỏ
+cluster_summary <- data %>%
+  group_by(Cluster) %>%
+  summarise(across(all_of(c(numerical_cols, binary_cols)), mean, na.rm = TRUE),
+            Exited_Rate = mean(Exited, na.rm = TRUE))
+
+# Tính tỷ lệ biến phân loại
+cluster_categorical <- data %>%
+  group_by(Cluster) %>%
+  summarise(Geography_France = mean(Geography == "France"),
+            Geography_Germany = mean(Geography == "Germany"),
+            Geography_Spain = mean(Geography == "Spain"),
+            Gender_Female = mean(Gender == "Female"))
+
+# Kết hợp thông tin
+cluster_analysis <- left_join(cluster_summary, cluster_categorical, by = "Cluster")
+print(cluster_analysis)
+
+# Lưu kết quả để sử dụng trong báo cáo
+write.csv(cluster_analysis, "cluster_analysis.csv", row.names = FALSE)
+```
+#3.9 Phân tích tỷ lệ rời bỏ theo cụm 
+
+-  Nhóm 3 có tỷ lệ rời bỏ cao nhất, khoảng 32.3%, tức là hơn 30% khách hàng trong nhóm này đã rời bỏ ngân hàng.
+
+-  Nhóm 1 và Nhóm 2 có tỷ lệ rời bỏ thấp hơn nhiều, chỉ khoảng 16%, tức là chỉ hơn 10% khách hàng trong hai nhóm này rời bỏ.
+```{r}
+# Biểu đồ tỷ lệ rời bỏ
+churn_plot <- ggplot(cluster_summary, aes(x = Cluster, y = Exited_Rate, fill = Cluster)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Tỷ lệ Rời Bỏ Theo Cụm",
+       x = "Cụm", y = "Tỷ lệ Rời Bỏ (Exited Rate)") +
+  theme_minimal()
+churn_plotly <- ggplotly(churn_plot)
+print(churn_plotly)
+```
+#3.10 Biểu đồ PCA
+
+-  Nhóm 1 (màu đỏ), Nhóm 2 (màu xanh lá), và Nhóm 3 (màu xanh dương) tách biệt khá rõ ràng.
+
+-  Nhóm 1 và Nhóm 2 có một chút chồng lấn ở vùng PC1 âm, nhưng Nhóm 3 tách biệt hoàn toàn ở vùng PC1 dương.
+
+**Sự tách biệt này cho thấy thuật toán K-means đã phân nhóm khá hiệu quả, vì các nhóm không bị lẫn vào nhau quá nhiều. Điểm Silhouette 0.175 (từ Bước 3) cũng cho thấy các nhóm không tách biệt hoàn hảo, nhưng vẫn đủ để phân tích.**
+
+```{r}
+
+# PCA
+pca_result <- prcomp(data_scaled, scale. = FALSE)
+pca_data <- as.data.frame(pca_result$x[, 1:2])
+pca_data$Cluster <- as.factor(data$Cluster)
+
+# Biểu đồ phân tán PCA
+pca_plot <- ggplot(pca_data, aes(x = PC1, y = PC2, color = Cluster)) +
+  geom_point() +
+  labs(title = "Biểu đồ Phân tán PCA của Các Cụm Khách Hàng",
+       x = "Thành phần chính 1 (PC1)", y = "Thành phần chính 2 (PC2)") +
+  theme_minimal()
+pca_plotly <- ggplotly(pca_plot)
+print(pca_plotly)
+
+```
+
+```{r}
+# Lưu dữ liệu PCA để sử dụng trong báo cáo
+write.csv(pca_data, "pca_data.csv", row.names = FALSE)
+```
+
+<--DATA MODELING-->
+#4. Triển khai mô hình máy học
+**Lẫy dữ liệu khi đã được tiền xử lý**
+```{r}
+data <- read.csv("data_processed.csv", sep = ',')
+print(data)
+```
+- Thuộc tính cần dự đoán là Exited (Churn khách hàng) có hai lớp là 0 (không quay lại) hoặc 1 (có quay lại). Do đó, ta có thể xác định được rằng đây là một bài toán phân loại (classification). Ở quá trình khai phá dữ liệu ta đã nắm bắt được dữ liệu và có thể đây là một bài toán phi tuyến tính. Vì vậy, có thể phân tích kỹ hơn để xác định thực chất có phải là bài toán tuyến tính hay phi tuyến tính cho dự đoán khách hàng ngân hàng hay không. 
+
+**Kiểm tra tỷ lệ Balance = 0**
+```{r}
+balance_0 <- data %>%
+  filter(Balance==0) %>%
+  count(Balance)
+```
+
+```{r}
+print(3478 / 9626)
+```
+- Kiểm tra tương tác của một vài biến như Balance đối với Exited để xem loại tuyến tính nào. Đối với Balance (Số dư trong tài khoản), thông thường với những tài khoản có số dư bằng 0 họ thường có xu hướng ít không sử dụng hoặc đã rời bỏ ngân hàng, trong dữ liệu kiểm tra thấy với Balance = 0 chiếm 36,1% tổng số người dùng, tuy nhiên tỉ lệ rời bỏ (Exited = 0) chỉ chiếm khoảng 20%. Do đó có thể được ngay không phải tất cả khách hàng có số dư bằng 0 đều rời bỏ, có thể phụ thuộc vào những yếu tố khác như Age, Comlain,... 
+--> Kết luận được rằng đây là một bài toán phi tuyến tính, kẻ ranh giới quyết định giữa hai lớp (Exited = 0 và 1) không thể được biểu diễn bằng một đường thẳng/đường phẳng trong không gian đặc trưng. Vì là bài toán phân loại và phi tuyến tính, có những mô hình khả thi như Decision Tree, Random Forest, XGBoost hay SVM.
+
+
+# 4.1. Xử lý dữ liệu cho mô hình
+**Dữ liệu đã được tiền xử lý để sử dung chung, do đó cần phải xử lý tiếp theo để phù hợp cho quá trình modeling dữ liệu**
+
+**Loại bỏ các biến không được sử dụng**
+- Loại bỏ các biến không được sử dụng trong mô hình: RowNumber, CustomerID và Surname. Do các biến này là biến định danh và có số lượng mẫu rất lớn, ngoài ra các biến này cũng không ảnh hưởng đến tỷ lệ rời đi của khách hàng. Ngoài ra như đã phân tích trước đó, biến Complain có độ tương quan lên đến 100% với biến mục tiêu Excited, biến này này là một biến leakage, nên cần loại bỏ để tránh overfiting cho mô hình và làm cho bài toán thực tế hơn
+
+```{r}
+data_model <- subset(data, select = -c(RowNumber, CustomerId, Surname, Complain))
+```
+
+```{r}
+print(data_model)
+```
+**Mã hoá các biến phân loại**
+- Mã hoá các biến phân loại thành dạng các cột nhị phân 0 hoặc 1, tránh giả định thứ tự, phù hợp với hầu hết mô hình học máy, thích hợp để phân tích và lựa chọn mô hình sau này
+
+**Chuyển các biến phân loại thành kiểu dữ liệu factor**
+```{r}
+data_model$Geography <- as.factor(data_model$Geography)
+data_model$Gender <- as.factor(data_model$Gender)
+data_model$Card.Type <- as.factor(data_model$Card.Type)
+data_model$Exited <- as.factor(data_model$Exited)
+data_model$HasCrCard <- as.factor(data_model$HasCrCard)
+data_model$IsActiveMember <- as.factor(data_model$IsActiveMember)
+```
+
+**One-hot encoding đối với các biến phân loại**
+```{r}
+dummy <- dummyVars(~ Geography + Gender + Card.Type, data = data_model)
+encoded_data <- predict(dummy, newdata = data_model) %>%
+  as.data.frame() %>%
+  bind_cols(data_model)  # Kết hợp với dữ liệu gốc
+
+encoded_data <- subset(encoded_data, select = -c(Geography, Gender, Card.Type))
+print(encoded_data)
+```
+
+**Kiểm tra độ cân bằng của các lớp**
+```{r}
+exited_freq <- table(encoded_data$Exited)
+cap <- c(7676,1950) 
+exited <- c(0, 1)
+percent <- round(cap / sum(cap) * 100, 2)
+label <- paste(exited, ": ", percent, "%", sep="")
+excited_layers <- pie(exited_freq, labels=label,main="Tỷ lệ Churn (Exited)")
+```
+- Ta thấy lớp 0 có 7676 mẫu (chiếm 79.7%) và lớp 1 chỉ có 1950 mẫu (chiếm 20.25%). Do đó lớp bị mất cân bằng, mô hình có thể học tốt lớp chiếm ưu thế nhưng bỏ qua lớp thiểu số, dẫn đến hiệu suất kém trên lớp thiểu số. Vì vậy cần phải sử dụng các kỹ thuật để cân bằng lớp.
+
+**Cân bằng lớp bằng SMOTE**
+-Để tránh overfitting của oversampling và dữ liệu đủ lớn để tạo mẫu tổng hợp, nhóm sử dụng SMOTE để thực hiện việc cân bằng lớp cho Exited.
+```{r}
+# Tách biến mục tiêu và đặc trưng
+X <- encoded_data[, !names(encoded_data) %in% "Exited"] 
+Y <- encoded_data$Exited 
+
+X <- as.data.frame(lapply(X, as.numeric))
+
+# Áp dụng SMOTE
+smote_result <- SMOTE(X = X, target = Y, K = 5)
+
+# Lấy dữ liệu 
+smote_data <- smote_result$data
+colnames(smote_data)[ncol(smote_data)] <- "Exited" # Đặt lại tên cột mục tiêu
+
+# Kiểm tra
+table(smote_data$Exited)
+prop_data <- prop.table(table(smote_data$Exited)) * 100
+```
+
+```{r}
+smote_data$Exited <- as.factor(smote_data$Exited)
+```
+
+**Kiểm tra kết quả sau khi cân bằng**
+```{r}
+pie(prop_data, 
+    labels = paste(names(prop_data), round(prop_data, 1), "%"), 
+    main = "Phân phối lớp Exited sau SMOTE", 
+    col = c("lightblue", "lightgreen"), 
+    clockwise = TRUE)
+```
+- Sau cân bằng, như trên biểu đồ tròn đã hiển thị, hai lớp 0 và 1 đã có tỉ lệ khá cân bằng với 43.4% cho lớp 1 và 56.7% cho lớp 0. Cả hai lớp chỉ chênh lệch khoảng độ 13,4%, tỷ lệ này chấp nhận được, tuy nhiên khi đưa vào mô hình có thể cần tinh chỉnh các tham số nhằm trường hợp mô hình nhạy cảm với các giá trị 0 hơn.
+
+#4.2. Xây dựng mô hình
+- Sau khi đã xử lý dữ liệu phù hợp, nhóm lần lượt đưa vào các mô hình máy học phù hợp như Decision Tree, Random Forest  và sau đó đánh giá hiệu suất của chúng. Thực hiện chia dữ liệu với tỷ lệ 80/20, 80% để huấn luyện và 20% để kiểm tra.
+
+**Import các thư viện cần thiết**
+```{r}
+library(rpart)          # Dùng cho Decision Tree
+library(randomForest)   # Dùng cho Random Forest
+library(pROC)           # Dùng để tính ROC-AUC
+```
+
+**Chia tệp dữ liệu để huấn luyện và kiểm tra**
+```{r}
+set.seed(123) 
+trainIndex <- createDataPartition(smote_data$Exited, p = 0.8, list = FALSE)
+train_data <- smote_data[trainIndex, ]
+test_data <- smote_data[-trainIndex, ]
+```
+
+##4.2.1. Mô hình Decision Tree
+- Nhóm thực hiện xây dựng mô hình Decision Tree đơn giản và chưa cần điều chỉnh các tham số do đã thực hiện cân bằng lớp SMOTE, chỉ sử dụng những tham số mặc định. Cài đặt mô hình như sau:
+
+**Xây dựng mô hình Decision Tree**
+```{r}
+#Decision Tree
+dt_model <- rpart(
+  Exited ~ .,
+  data = train_data,
+  method = "class",
+)
+# Dự đoán trên tập kiểm tra
+dt_pred <- predict(dt_model, test_data, type = "class")
+dt_prob <- predict(dt_model, test_data, type = "prob")[, 2]  # Xác suất cho lớp 1
+```
+
+# 4.2.2. Mô hình Random Forest
+-Xây dựng mô hình Random Forest đơn giản và có các tham số cơ bản như:
+n_tree = 500 (Số lượng cây quyết định trong Random Forest): Giá trị 500 là một lựa chọn phổ biến, đủ lớn để đảm bảo độ chính xác mà không quá tốn tài nguyên.
+node_size = 5 (Số lượng mẫu tối thiểu tại mỗi nút lá của một cây quyết định): Giá trị này cho phép cây sâu hơn, có thể nắm bắt được các mẫu phức tạp hơn.
+Sau khi xác định được các tham số cơ bản, thực hiện cài đặt mô hình qua thư viện randomForest:
+
+**Xây dựng mô hình Random Forest**
+```{r}
+#Random Forest
+rf_model <- randomForest(
+  Exited ~ .,
+  data = train_data,
+  ntree = 500,
+  nodesize = 5,
+  importance = TRUE
+)
+
+# Dự đoán trên tập kiểm tra
+rf_pred <- predict(rf_model, test_data)
+rf_prob <- predict(rf_model, test_data, type = "prob")[, 2]  # Xác suất cho lớp 1
+```
+
+```{r}
+str(encoded_data)
+```
+#5. Đánh giá và lựa chọn mô hình dự đoán
+
+**Sử dụng ma trận nhầm lẫn**
+```{r}
+#Ma trận nhầm lẫn và các chỉ số đánh giá
+# Decision Tree
+dt_confusion <- confusionMatrix(dt_pred, test_data$Exited, positive = "1")
+print("Các chỉ số đánh giá của Decision Tree:")
+print(dt_confusion)
+
+# Random Forest
+rf_confusion <- confusionMatrix(rf_pred, test_data$Exited, positive = "1")
+print("Các chỉ số đánh giá của Random Forest:")
+print(rf_confusion)
+```
+Ta cần chú ý những chỉ số sau:
+Đối với Decision Tree:
+  - Accuracy khoảng 0.8362, mô hình dự đoán đúng 83.62% số mẫu trong tập kiểm tra. Đây là một con số khá tốt, nhưng vì dữ liệu đã được cân bằng (bằng SMOTE), khoảng tin cậy 95% (0.8217, 0.85) cho thấy độ chính xác ổn định, Accuracy là một chỉ số đáng tin cậy để đánh giá tổng thể.
+  - Kappa đo được 0.6568 mức độ đồng thuận giữa dự đoán và thực tế cho thấy mô hình có hiệu suất tốt trong việc phân loại, nhưng không quá xuất sắc.
+  - Sensitivity (Recall) đo tỷ lệ các mẫu thực tế là lớp 1 (Exited = 1) được dự đoán đúng. Mô hình chỉ phát hiện được 69.2% các trường hợp khách hàng thực sự rời bỏ. Đây là một con số trung bình khá, cho thấy mô hình bỏ sót nhiều trường hợp rời bỏ (30.8% bị bỏ sót).
+  - Specificity đo tỷ lệ các mẫu thực tế là lớp 0 (Exited = 0) được dự đoán đúng. Mô hình dự đoán rất tốt các trường hợp không rời bỏ, với tỷ lệ 94.53%. Điều này cho thấy mô hình có xu hướng thiên nhẹ về dự đoán lớp 0.
+
+Đối với Random Forest:
+  - Accuracy khoảng 0.8965, mô hình dự đoán đúng 89.65% số mẫu trong tập kiểm tra. Đây là một con số khá tốt, nhưng vì dữ liệu đã được cân bằng (bằng SMOTE), khoảng tin cậy 95% (0.8844, 0.9077) cho thấy độ chính xác ổn định, Accuracy là một chỉ số đáng tin cậy để đánh giá tổng thể.
+  - Kappa ​​đo được 0.7857 điều này cho thấy mô hình Random Forest có khả năng dự đoán đáng tin cậy, đặc biệt trong bối cảnh tập dữ liệu hơi mất cân bằng.
+  - Sensitivity (Recall) Mô hình phát hiện được 81.2% các trường hợp khách hàng thực sự rời bỏ. Đây là một con số tốt, cho thấy mô hình hoạt động tốt với nhiều trường hợp rời bỏ. Tuy nhiên vẫn có khoảng 18.8% bị bỏ sót.
+  - Specificity Mô hình dự đoán rất tốt các trường hợp không rời bỏ, với tỷ lệ 96.09%. Điều này cho thấy mô hình rất ít nhầm lẫn khi dự đoán lớp 0.
+
+**Vẽ biểu đồ đường ROC để so sánh hiệu suất của hai mô hình**
+```{r}
+# Tính ROC-AUC
+# Decision Tree
+dt_roc <- roc(test_data$Exited, dt_prob)
+dt_auc <- auc(dt_roc)
+print(paste("Decision Tree ROC-AUC:", dt_auc))
+
+# Random Forest
+rf_roc <- roc(test_data$Exited, rf_prob)
+rf_auc <- auc(rf_roc)
+print(paste("Random Forest ROC-AUC:", rf_auc))
+
+# Vẽ đường cong ROC
+plot(dt_roc, col = "blue", main = "ROC giữa Decision Tree và Random Forest")
+plot(rf_roc, col = "red", add = TRUE)
+legend("bottomright", legend = c("Decision Tree", "Random Forest"), col = c("blue", "red"), lwd = 2)
+```
+- Đường cong ROC biểu diễn mối quan hệ giữa Sensitivity (độ nhạy, hay Recall) và 1 - Specificity (tỷ lệ False Positive Rate) tại các ngưỡng phân loại khác nhau. Đây là một công cụ phổ biến để đánh giá hiệu suất của mô hình phân loại nhị phân. Cả hai đường cong đều nằm phía trên đường chéo, cho thấy cả Decision Tree và Random Forest đều có hiệu suất tốt hơn đoán ngẫu nhiên.
+- Đường cong của Random Forest (màu đỏ) nằm cao hơn và gần góc trên bên trái hơn so với đường cong của Decision Tree (màu xanh) ở hầu hết các điểm, điều này cho thấy Random Forest có Sensitivity cao hơn tại cùng một mức 1 - Specificity (FPR) so với Decision Tree.
+- Thấy được rằng, Random Forest vượt trội hơn Decision Tree, Đường cong của Random Forest luôn nằm phía trên đường cong của Decision Tree, đặc biệt ở vùng FPR thấp (1 - Specificity từ 0 đến 0.5). Điều này cho thấy Random Forest có khả năng phát hiện khách hàng rời bỏ (Positive) tốt hơn mà không làm tăng tỷ lệ dự đoán sai (FP). Tại các ngưỡng phân loại khác nhau, Random Forest đạt được Sensitivity cao hơn với cùng mức FPR, hoặc đạt cùng mức Sensitivity với FPR thấp hơn. Random Forest có khả năng phát hiện khách hàng rời bỏ tốt hơn (Sensitivity cao hơn) tại cùng mức FPR, nghĩa là ít bỏ sót khách hàng rời bỏ hơn. Đồng thời, nó cũng giữ được Specificity cao, giảm thiểu việc dự đoán sai khách hàng không rời bỏ thành rời bỏ.
+
+**So sánh các chỉ số kiểm thử**
+- Để chọn ra mô hình phù hợp cho việc phân tích và dự đoán Churn của khách hàng ngân hàng, cần phải so sánh hiệu năng giữa các mô hình đó và chọn ra mô hình phù hợp với mục tiêu nhất. Tập trung so sánh những chỉ số quan trọng và được biểu diễn qua biểu đồ như sau:
+```{r}
+#So sánh các chỉ số
+comparison <- data.frame(
+  Model = c("Decision Tree", "Random Forest"),
+  Accuracy = c(dt_confusion$overall["Accuracy"], rf_confusion$overall["Accuracy"]),
+  Precision = c(dt_confusion$byClass["Precision"], rf_confusion$byClass["Precision"]),
+  Recall = c(dt_confusion$byClass["Recall"], rf_confusion$byClass["Recall"]),
+  F1_Score = c(dt_confusion$byClass["F1"], rf_confusion$byClass["F1"]),
+  ROC_AUC = c(dt_auc, rf_auc)
+)
+print("So sánh Models:")
+print(comparison)
+```
+**Trực quan hoá các số liệu để có cái nhìn rõ hơn**
+```{r}
+comparison_long <- melt(comparison, id.vars = "Model", 
+                        variable.name = "Metric", 
+                        value.name = "Value")
+
+# Vẽ biểu đồ cột nhóm
+ggplot(comparison_long, aes(x = Metric, y = Value, fill = Model)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_text(aes(label = round(Value, 3)), 
+            position = position_dodge(width = 1), 
+            vjust = -0.5, size = 3.5) +
+  labs(title = "So sánh hiệu năng giữa Decision Tree và Random Forest",
+       x = "Chỉ số",
+       y = "Giá trị",
+       fill = "Model") +
+  theme_minimal() +
+  scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, 0.1)) +
+  scale_fill_manual(values = c("Decision Tree" = "#1f77b4", "Random Forest" = "#ff7f0e"))
+```
+- Biểu đồ đã biểu thị rất rõ độ lệch giữa hiệu năng của hai mô hình, mọi chỉ số của mô hình Random Forest đều tốt hơn Decision Tree và hiệu quả hơn rất nhiều. Ngoài ra, mục tiêu là dự đoán Churn khách hàng ngân hàng, đồng nghĩa với việc phân tích sự rời khỏi ngân hàng của khách hàng là rất quan trọng (dự đoán Exited là 1). Vì vậy ta cần tập trung nhiều nhất vào chỉ số Recall (Sensitive) khi tính tỷ lệ dự đoán đúng của mô hình trên thực tế, độ nhạy của mô hình Random Forest đạt lên đến 81.2% cho thấy sự nhạy cảm đối với dữ liệu thực tế, hạn chế bỏ sót những trường hợp rời đi của khách hàng. Ngoài ra, chỉ số Accuracy cũng cho thấy sự chính xác của mô hình, Precision 94.1% (tốt hơn 90.6% của Decision Tree) cũng cho thấy sự uy tín, chuẩn xác trong sự dự đoán của mô hình.
+
+```{r}
+# Xem tầm quan trọng của các đặc trưng
+randomForest::importance(rf_model)
+varImpPlot(rf_model, main = "Đặc trưng quan trọng của Random Forest")
+```
+Nhận xét:
+Đối với MeanDecreaseAccuracy (Bên trái), thước đo này đánh giá mức độ giảm độ chính xác của mô hình nếu một đặc trưng bị loại bỏ hoặc được hoán đổi ngẫu nhiên. Giá trị càng cao, đặc trưng đó càng quan trọng vì việc loại bỏ nó làm giảm độ chính xác của mô hình nhiều hơn. Dựa theo biểu đồ thấy rõ được rằng:
+  - Age (~100): Là đặc trưng quan trọng nhất, cho thấy tuổi tác có ảnh hưởng lớn đến dự đoán (có thể là biến Exited – khách hàng rời bỏ).
+  - NumOfProducts (~80): Số lượng sản phẩm khách hàng sử dụng cũng rất quan trọng, đứng thứ hai.
+  - IsActiveMember (~60): Trạng thái thành viên tích cực có ảnh hưởng đáng kể.
+  - Balance (~50): Số dư tài khoản cũng là một yếu tố quan trọng.
+  - Các đặc trưng khác như Gender, Geography, Satisfaction_Score, Card_Type, EstimatedSalary, Tenure, HasCrCard, Point_Earned, và CreditScore có mức độ quan trọng giảm dần, với giá trị từ ~40 trở xuống.
+  - Đặc biệt, CreditScore (~10) có mức độ quan trọng thấp nhất, cho thấy điểm tín dụng ít ảnh hưởng đến dự đoán.
+
+Đối với MeanDecreaseGini (Bên phải), thước đo này đánh giá mức độ giảm độ bất thuần (impurity) trung bình (dựa trên chỉ số Gini) khi sử dụng đặc trưng đó để phân tách trong các cây của Random Forest. Giá trị càng cao, đặc trưng đó càng hữu ích trong việc phân tách dữ liệu thành các lớp (ví dụ: Exited = 0 hoặc 1). Dựa theo biểu đồ thấy rõ được rằng:
+  - Age (~800): Vẫn là đặc trưng quan trọng nhất, với giá trị rất cao, cho thấy tuổi tác có vai trò lớn trong việc giảm độ bất thuần khi phân tách dữ liệu.
+  - NumOfProducts (~700): Đứng thứ hai, cũng rất quan trọng.
+  - IsActiveMember (~400): Thành viên tích cực có ảnh hưởng lớn trong việc phân tách.
+  - Gender_Male và Gender_Female (~300): Giới tính có ảnh hưởng đáng kể, nhưng thấp hơn các đặc trưng trên.
+  - Balance, Geography_Germany, EstimatedSalary, và Point_Earned có giá trị từ ~200–300.
+  - Các đặc trưng còn lại như Geography_France, Geography_Spain, Satisfaction_Score, Card_Type, Tenure, và CreditScore có giá trị thấp hơn, từ ~100 trở xuống.
+  - Card_Type_SILVER (~50) và CreditScore (~50) có mức độ quan trọng thấp nhất theo thước đo này.
+Qua những phân tích các đặc trưng trên sẽ giúp đem lại nhiều giá trị hữu ích và quan trọng trong việc thiết kế và xây dựng chiến lược, đem lại sự hiệu quả khi xây dựng mô hình dự doán Churn.
+
+**Lưu mô hình để sử dụng**
+```{r}
+# Lưu mô hình
+saveRDS(rf_model, "rf_model_churn.rds")
+```
+
+**Lưu dữ liệu đã được xử lý phục vụ quá trình huấn luyện mô hình**
+```{r}
+write.csv(encoded_data,"data_training.csv",row.names = FALSE)
+```

@@ -1,0 +1,401 @@
+---
+title: "TRÀ MY"
+output: html_document
+date: "2025-05-13"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# Danh sách các gói
+required_packages <- c("tidyverse", "ggplot2", "corrplot", "gridExtra")
+
+# Hàm kiểm tra
+install_if_missing <- function(packages) {
+  for (pkg in packages) {
+    if (!requireNamespace(pkg, quietly = TRUE)) {
+      install.packages(pkg, dependencies = TRUE)
+    }
+    library(pkg, character.only = TRUE)
+  }
+}
+install_if_missing(required_packages)
+```
+
+```{r}
+# Đọc dữ liệu
+data <- read.csv("data_processed.csv")
+
+# Xem cấu trúc dữ liệu
+str(data)
+```
+
+#2.3.1 Phân bố số lượng sản phẩm sử dụng
+
+**Phân bố này cho thấy ngân hàng cần tập trung vào nhóm khách hàng sử dụng 1 sản phẩm (chiếm đa số) để khuyến khích họ sử dụng thêm sản phẩm, nhưng phải đảm bảo trải nghiệm mượt mà để tránh tăng nguy cơ churn.**
+```{r}
+
+# Tính phân bố NumOfProducts
+product_dist <- data %>%
+  group_by(NumOfProducts) %>%
+  summarise(
+    Count = n(),
+    Proportion = n() / nrow(data) * 100
+  )
+
+print(product_dist)
+```
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+# Biểu đồ cột
+p1 <- ggplot(product_dist, aes(x = factor(NumOfProducts), y = Proportion)) +
+  geom_bar(stat = "identity", fill = "green") +
+  geom_text(aes(label = sprintf("%.1f%%", Proportion)), vjust = -0.5) +
+  labs(title = "Phân bố Số lượng Sản phẩm Sử dụng",
+       x = "Số lượng Sản phẩm",
+       y = "Tỷ lệ (%)") +
+  theme_minimal()
+print(p1)
+ggsave("product_distribution.png", plot = p1, width = 6, height = 4)
+```
+#2.3.2 Tác động của số lượng sản phẩm đến 
+
+**Biểu đồ chỉ ra rằng việc thúc đẩy sử dụng nhiều sản phẩm cần đi kèm với cải thiện chất lượng dịch vụ để tránh hiệu ứng ngược (tăng churn). Dữ liệu này có thể được sử dụng để xây dựng các chiến lược giữ chân khách hàng, như nhắm mục tiêu vào nhóm sử dụng 1 sản phẩm để tăng gắn kết, hoặc cải thiện trải nghiệm cho nhóm 3–4 sản phẩm.**
+```{r}
+# Tính tỷ lệ churn theo NumOfProducts
+churn_by_products <- data %>%
+  group_by(NumOfProducts) %>%
+  summarise(
+    Total = n(),
+    Churned = sum(Exited),
+    ChurnRate = mean(Exited) * 100
+  )
+
+print(churn_by_products)
+
+# Biểu đồ cột
+p2 <- ggplot(churn_by_products, aes(x = factor(NumOfProducts), y = ChurnRate)) +
+  geom_bar(stat = "identity", fill = "salmon") +
+  geom_text(aes(label = sprintf("%.1f%%", ChurnRate)), vjust = -0.5) +
+  labs(title = "Tỷ lệ Churn theo Số lượng Sản phẩm",
+       x = "Số lượng Sản phẩm",
+       y = "Tỷ lệ Churn (%)") +
+  theme_minimal()
+print(p2)
+ggsave("churn_by_products.png", plot = p2, width = 6, height = 4)
+```
+#2.3.3 Sử dụng thẻ tín dụng và loại thẻ
+
+**Biểu đồ nhấn mạnh rằng việc cải thiện ưu đãi cho thẻ DIAMOND có thể giảm churn ở phân khúc khách hàng cao cấp, một nhóm quan trọng về giá trị tài chính. Dữ liệu chỉ ra rằng không phải tất cả sản phẩm đều có tác động tích cực đến giữ chân khách hàng, và ngân hàng cần cá nhân hóa dịch vụ dựa trên loại thẻ.**
+
+```{r}
+# Tỷ lệ khách hàng sử dụng thẻ tín dụng
+crcard_dist <- data %>%
+  group_by(HasCrCard) %>%
+  summarise(
+    Count = n(),
+    Proportion = n() / nrow(data) * 100
+  )
+
+print(crcard_dist)
+
+# Tỷ lệ churn theo HasCrCard
+churn_by_crcard <- data %>%
+  group_by(HasCrCard) %>%
+  summarise(
+    Total = n(),
+    Churned = sum(Exited),
+    ChurnRate = mean(Exited) * 100
+  )
+
+print(churn_by_crcard)
+
+# Tỷ lệ churn theo Card.Type
+churn_by_cardtype <- data %>%
+  group_by(Card.Type) %>%
+  summarise(
+    Total = n(),
+    Churned = sum(Exited),
+    ChurnRate = mean(Exited) * 100
+  )
+
+print(churn_by_cardtype)
+
+# Biểu đồ cột cho HasCrCard
+p3 <- ggplot(churn_by_crcard, aes(x = factor(HasCrCard), y = ChurnRate)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  geom_text(aes(label = sprintf("%.1f%%", ChurnRate)), vjust = -0.5) +
+  labs(title = "Tỷ lệ Churn theo Thẻ Tín dụng",
+       x = "Có Thẻ Tín dụng (0: Không, 1: Có)",
+       y = "Tỷ lệ Churn (%)") +
+  theme_minimal()
+print(p3)
+# Biểu đồ cột cho Card.Type
+p4 <- ggplot(churn_by_cardtype, aes(x = Card.Type, y = ChurnRate)) +
+  geom_bar(stat = "identity", fill = "lightpink") +
+  geom_text(aes(label = sprintf("%.1f%%", ChurnRate)), vjust = -0.5) +
+  labs(title = "Tỷ lệ Churn theo Loại Thẻ",
+       x = "Loại Thẻ",
+       y = "Tỷ lệ Churn (%)") +
+  theme_minimal()
+print(p4)
+# Lưu biểu đồ
+ggsave("churn_by_crcard.png", plot = p3, width = 6, height = 4)
+ggsave("churn_by_cardtype.png", plot = p4, width = 6, height = 4)
+```
+#2.3.4 Mức độ tích cực của khách hàng
+
+**Biểu đồ cung cấp cơ sở cho các chiến lược giữ chân khách hàng, như khuyến khích giao dịch thường xuyên thông qua ưu đãi (miễn phí giao dịch, lãi suất ưu đãi). Phân tích làm rõ rằng hành vi sử dụng dịch vụ thường xuyên có thể được khai thác để giảm tỷ lệ churn.**
+
+```{r}
+churn_by_active <- data %>%
+  group_by(IsActiveMember) %>%
+  summarise(
+    Total = n(),
+    Churned = sum(Exited),
+    ChurnRate = mean(Exited) * 100
+  )
+
+print(churn_by_active)
+
+# Biểu đồ cột
+p5 <- ggplot(churn_by_active, aes(x = factor(IsActiveMember), y = ChurnRate)) +
+  geom_bar(stat = "identity", fill = "lightblue") +
+  geom_text(aes(label = sprintf("%.1f%%", ChurnRate)), vjust = -0.5) +
+  labs(title = "Tỷ lệ Churn theo Mức độ Tích cực",
+       x = "Thành viên Tích cực (0: Không, 1: Có)",
+       y = "Tỷ lệ Churn (%)") +
+  theme_minimal()
+print(p5)
+ggsave("churn_by_active.png", plot = p5, width = 6, height = 4)
+```
+#2.3.5 Điểm tích luỹ và chương trình khách hàng thân thiết
+
+**Kết quả chỉ ra rằng chương trình tích điểm không phải là đặc trưng mạnh trong dự đoán churn, nhưng nó cũng nhấn mạnh cơ hội cải thiện. Bằng cách nâng cấp chương trình tích điểm (tăng giá trị thưởng, đa dạng hóa phần thưởng), ngân hàng có thể tăng gắn kết khách hàng, từ đó giảm churn. Phân tích cung cấp một góc nhìn về hành vi tương tác với các chương trình khuyến mãi, một yếu tố quan trọng trong chiến lược giữ chân khách hàng.**
+```{r}
+# Phân tích Point.Earned theo Exited
+point_summary <- data %>%
+  group_by(Exited) %>%
+  summarise(
+    Mean_Points = mean(Point.Earned),
+    Median_Points = median(Point.Earned)
+  )
+
+print(point_summary)
+
+# Biểu đồ boxplot
+p6 <- ggplot(data, aes(x = factor(Exited), y = Point.Earned)) +
+  geom_boxplot(fill = "lightyellow") +
+  labs(title = "Phân phối Điểm Tích lũy theo Trạng thái Churn",
+       x = "Trạng thái Churn (0: Ở lại, 1: Rời bỏ)",
+       y = "Điểm Tích lũy") +
+  theme_minimal()
+print(p6)
+ggsave("points_by_exited.png", plot = p6, width = 6, height = 4)
+```
+#2.3.6 Mối quan hệ giữa sản phẩm và khiếu nại:
+
+**Biểu đồ cung cấp dữ liệu để xây dựng mô hình dự đoán churn với trọng số cao cho biến khiếu nại, đồng thời chỉ ra rằng cải thiện quy trình dịch vụ cho khách hàng sử dụng nhiều sản phẩm là ưu tiên hàng đầu để giảm churn. Kết quả làm rõ cách hành vi sử dụng sản phẩm ảnh hưởng đến trải nghiệm khách hàng, một yếu tố cốt lõi trong dự đoán churn.**
+```{r}
+# Tỷ lệ khiếu nại theo NumOfProducts
+complain_by_products <- data %>%
+  group_by(NumOfProducts) %>%
+  summarise(
+    Total = n(),
+    Complained = sum(Complain),
+    ComplainRate = mean(Complain) * 100
+  )
+
+print(complain_by_products)
+
+# Biểu đồ cột
+p7 <- ggplot(complain_by_products, aes(x = factor(NumOfProducts), y = ComplainRate)) +
+  geom_bar(stat = "identity", fill = "orchid") +
+  geom_text(aes(label = sprintf("%.1f%%", ComplainRate)), vjust = -0.5) +
+  labs(title = "Tỷ lệ Khiếu nại theo Số lượng Sản phẩm",
+       x = "Số lượng Sản phẩm",
+       y = "Tỷ lệ Khiếu nại (%)") +
+  theme_minimal()
+print(p7)
+ggsave("complain_by_products.png", plot = p7, width = 6, height = 4)
+```
+
+#2.3.7.PHÂN KHÚC KHÁCH HÀNG
+
+***Phân cụm các biến***
+
+**Lý do lựa chọn:**
+
+-  Các biến số được chọn phản ánh rõ ràng hành vi tài chính, nhân khẩu học, và mức độ tương tác của khách hàng, phù hợp để phân cụm.
+
+-  Các biến nhị phân bổ sung thông tin quan trọng (sử dụng thẻ, tích cực, khiếu nại).
+Geography và Gender cung cấp thông tin khu vực và giới tính, có thể ảnh hưởng đến hành vi tài chính.
+
+-  Exited giúp đánh giá nguy cơ rời bỏ của từng cụm, nhưng không dùng trực tiếp trong phân cụm để tránh thiên lệch.
+```{r}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(plotly)
+
+# Chọn biến cho phân cụm
+numerical_cols <- c("Age", "Tenure", "Balance", "NumOfProducts", "EstimatedSalary", 
+                    "Satisfaction.Score", "Point.Earned")
+binary_cols <- c("HasCrCard", "IsActiveMember", "Complain")
+categorical_cols <- c("Geography", "Gender")
+analysis_cols <- c(numerical_cols, binary_cols, categorical_cols, "Exited")
+
+```
+
+**Mã hoá one-hot cho các biến phân loại**
+
+-  Các biến Geography (Pháp, Đức, Tây Ban Nha) và Gender (Nam, Nữ) là chữ, nhưng thuật toán K-means chỉ làm việc với số. Vì vậy, chúng ta chuyển chúng thành số.
+
+**Chuẩn hoá dữ liệu**
+
+-  Các biến có thang đo khác nhau. Nếu không chuẩn hóa, biến có giá trị lớn như Balance sẽ lấn át các biến khác, làm kết quả phân cụm bị lệch. Chuẩn hóa giúp tất cả biến đều có "tiếng nói" ngang nhau trong thuật toán K-means.
+
+*Nhận xét dữ liệu sau chuẩn hoá:*
+-  Trung bình (Mean): Tất cả các biến đều có trung bình ~0, đúng với mục tiêu chuẩn hóa.
+
+-  Độ lệch chuẩn ~1: Giá trị dao động từ âm đến dương, cho thấy các biến đã được đưa về cùng thang đo.
+
+```{r}
+# Mã hóa one-hot cho biến phân loại
+data_encoded <- data %>%
+  mutate(Geography = as.factor(Geography), Gender = as.factor(Gender)) %>%
+  model.matrix(~ Geography + Gender - 1, data = .) %>%
+  as.data.frame()
+
+# Kết hợp dữ liệu số, nhị phân và dữ liệu đã mã hóa
+data_for_clustering <- cbind(data[, c(numerical_cols, binary_cols)], data_encoded)
+
+# Chuẩn hóa dữ liệu
+
+data_scaled <- scale(data_for_clustering)
+
+# Kiểm tra dữ liệu sau chuẩn hóa
+print("Columns in data_scaled:")
+print(colnames(data_scaled))
+summary(data_scaled)
+```
+**Xác định cụm tối ưu**
+
+-  Silhouette Method: Dựa trên điểm Silhouette trung bình đo lường mức độ gắn kết và tách biệt của các cụm.
+
+*Nhận xét*
+
+- Silhouette Plot: chọn k = 3 (điểm Silhouette cao nhất ~0.175)
+```{r}
+# Biểu đồ Silhouette
+silhouette_plot <- fviz_nbclust(data_scaled, kmeans, method = "silhouette") +
+  labs(title = "Biểu đồ Silhouette để Xác định Số Cụm Tối Ưu",
+       x = "Số cụm (k)", y = "Điểm Silhouette trung bình") 
+print(silhouette_plot)
+
+# Chọn k = 3 dựa trên kết quả trước
+k_optimal <- 3
+```
+**Thực hiện phân cụm**
+
+-  Sử dụng K-means với số cụm k_optimal = 3.
+
+- Gán nhãn cụm (1, 2, 3) cho mỗi khách hàng.
+
+*Phân bố cụm:*
+
+-  Cụm 1 là nhóm lớn nhất (4,826 khách hàng, chiếm ~50% tổng số khách hàng).
+
+-  Cụm 2 và Cụm 3 có số lượng tương đối cân bằng (2,379 và 2,421, mỗi cụm chiếm ~24–25%).
+```{r}
+# Thực hiện K-means với k_optimal = 3
+set.seed(123)
+kmeans_model <- kmeans(data_scaled, centers = k_optimal, nstart = 25)
+
+# Gán nhãn cụm vào dữ liệu
+data$Cluster <- as.factor(kmeans_model$cluster)
+
+# Kiểm tra phân bố cụm
+table(data$Cluster)
+```
+
+#2.3.8. Phân tích đặc điểm cụm
+
+-  Nhóm 1 và nhóm 2 (Pháp và Tây Ban Nha) là những khách hàng trung niên, không có nhiều tiền trong tài khoản, nhưng hài lòng và trung thành với ngân hàng (ít phàn nàn, ít rời bỏ). Họ có thể là những người dùng ngân hàng cho các nhu cầu cơ bản, như nhận lương hoặc trả hóa đơn.
+
+-  Nhóm 3 (Đức) là nhóm khách hàng trung niên có nhiều tiền trong tài khoản, nhưng không hài lòng (nhiều phàn nàn) và dễ rời bỏ ngân hàng. Đây là nhóm cần chú ý nhất, vì họ có khả năng tài chính tốt nhưng lại không hài lòng với dịch vụ, có thể do phí cao hoặc chăm sóc khách hàng chưa tốt.
+
+-  Khu vực là yếu tố ảnh hưởng lớn nhất đến hành vi khách hàng: khách hàng ở Đức dễ rời bỏ hơn khách hàng ở Pháp và Tây Ban Nha. Điều này cho thấy ngân hàng cần xem lại cách phục vụ ở Đức để giữ chân khách hàng.
+
+```{r}
+# Tính trung bình các biến số và nhị phân, cùng tỷ lệ rời bỏ
+cluster_summary <- data %>%
+  group_by(Cluster) %>%
+  summarise(across(all_of(c(numerical_cols, binary_cols)), mean, na.rm = TRUE),
+            Exited_Rate = mean(Exited, na.rm = TRUE))
+
+# Tính tỷ lệ biến phân loại
+cluster_categorical <- data %>%
+  group_by(Cluster) %>%
+  summarise(Geography_France = mean(Geography == "France"),
+            Geography_Germany = mean(Geography == "Germany"),
+            Geography_Spain = mean(Geography == "Spain"),
+            Gender_Female = mean(Gender == "Female"))
+
+# Kết hợp thông tin
+cluster_analysis <- left_join(cluster_summary, cluster_categorical, by = "Cluster")
+print(cluster_analysis)
+
+# Lưu kết quả để sử dụng trong báo cáo
+write.csv(cluster_analysis, "cluster_analysis.csv", row.names = FALSE)
+```
+#2.3.10 Phân tích tỷ lệ rời bỏ theo cụm 
+
+-  Nhóm 3 có tỷ lệ rời bỏ cao nhất, khoảng 32.3%, tức là hơn 30% khách hàng trong nhóm này đã rời bỏ ngân hàng.
+
+-  Nhóm 1 và Nhóm 2 có tỷ lệ rời bỏ thấp hơn nhiều, chỉ khoảng 16%, tức là chỉ hơn 10% khách hàng trong hai nhóm này rời bỏ.
+```{r}
+# Biểu đồ tỷ lệ rời bỏ
+churn_plot <- ggplot(cluster_summary, aes(x = Cluster, y = Exited_Rate, fill = Cluster)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Tỷ lệ Rời Bỏ Theo Cụm",
+       x = "Cụm", y = "Tỷ lệ Rời Bỏ (Exited Rate)") +
+  theme_minimal()
+churn_plotly <- ggplotly(churn_plot)
+print(churn_plotly)
+```
+#2.3.11 Biểu đồ PCA
+
+-  Nhóm 1 (màu đỏ), Nhóm 2 (màu xanh lá), và Nhóm 3 (màu xanh dương) tách biệt khá rõ ràng.
+
+-  Nhóm 1 và Nhóm 2 có một chút chồng lấn ở vùng PC1 âm, nhưng Nhóm 3 tách biệt hoàn toàn ở vùng PC1 dương.
+
+**Sự tách biệt này cho thấy thuật toán K-means đã phân nhóm khá hiệu quả, vì các nhóm không bị lẫn vào nhau quá nhiều. Điểm Silhouette 0.175 (từ Bước 3) cũng cho thấy các nhóm không tách biệt hoàn hảo, nhưng vẫn đủ để phân tích.**
+
+```{r}
+
+# PCA
+pca_result <- prcomp(data_scaled, scale. = FALSE)
+pca_data <- as.data.frame(pca_result$x[, 1:2])
+pca_data$Cluster <- as.factor(data$Cluster)
+
+# Biểu đồ phân tán PCA
+pca_plot <- ggplot(pca_data, aes(x = PC1, y = PC2, color = Cluster)) +
+  geom_point() +
+  labs(title = "Biểu đồ Phân tán PCA của Các Cụm Khách Hàng",
+       x = "Thành phần chính 1 (PC1)", y = "Thành phần chính 2 (PC2)") +
+  theme_minimal()
+pca_plotly <- ggplotly(pca_plot)
+print(pca_plotly)
+
+```
+
+```{r}
+# Lưu dữ liệu PCA để sử dụng trong báo cáo
+write.csv(pca_data, "pca_data.csv", row.names = FALSE)
+```

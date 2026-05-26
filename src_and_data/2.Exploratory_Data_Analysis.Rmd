@@ -1,0 +1,268 @@
+---
+title: "eda"
+author: "Nhóm 7"
+date: "2025-05-14"
+output: html_document
+---
+#Khai báo thư viện 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# Danh sách các gói
+required_packages <- c("dplyr", "ggplot2", "stats", "gridExtra", "corrplot", "vcd")
+
+# Kiểm tra
+install_if_missing <- function(packages) {
+  for (pkg in packages) {
+    if (!requireNamespace(pkg, quietly = TRUE)) {
+      install.packages(pkg, dependencies = TRUE)
+    }
+    library(pkg, character.only = TRUE)
+  }
+}
+
+install_if_missing(required_packages)
+```
+
+#Đọc dữ liệu
+```{r}
+data <- read.csv("data_processed.csv")
+data_eda <- data
+```
+
+#2.1: Thống kê mô tả
+
+```{r}
+cat("Thống kê mô tả:\n")
+summary(data_eda)
+```
+Nhằm xem bối cảnh của dữ liệu từ đó cung cấp thống kê cơ bản (min, max, trung bình, trung vị, tứ phân vị) cho tất cả biến trong dữ liệu, giúp nắm tổng quan phân phối và đặc điểm dữ liệu => phát hiện giá trị bất thường (nếu có) và tỷ lệ churn.
+
+#2.2. Phân tích tương quan giữa các biến:
+```{r}
+cat("\nPhân tích tương quan giữa các biến:\n")
+
+#Tương quan Pearson giữa các số 
+numerical_cols <- c("CreditScore", "Age", "Balance", "EstimatedSalary", "Tenure", "NumOfProducts", "Point.Earned")
+cor_matrix <- cor(data_eda[, numerical_cols], method = "pearson", use = "complete.obs")
+cat("\nMa trận tương quan Pearson cho biến số:\n")
+print(round(cor_matrix, 2))
+
+corrplot(cor_matrix, method = "color", type = "upper", tl.cex = 0.8, addCoef.col = "black", number.cex = 0.7, 
+         title = "Tương quan Pearson giữa các biến số", mar = c(0, 0, 2, 0))
+
+#Tương quan Cramer's V giữa các biến phân loại
+categorical_cols <- c("Geography", "Gender", "HasCrCard", "IsActiveMember", "Card.Type", "Complain", "Satisfaction.Score", "Exited")
+cramer_v <- matrix(NA, nrow = length(categorical_cols), ncol = length(categorical_cols), 
+                   dimnames = list(categorical_cols, categorical_cols))
+
+for (i in seq_along(categorical_cols)) {
+  for (j in seq_along(categorical_cols)) {
+    if (i <= j) {
+      tbl <- table(data_eda[[categorical_cols[i]]], data_eda[[categorical_cols[j]]])
+      cramer_v[i, j] <- assocstats(tbl)$cramer
+      cramer_v[j, i] <- cramer_v[i, j]
+    }
+  }
+}
+
+cat("\nMa trận Cramer's V cho biến phân loại:\n")
+print(round(cramer_v, 2))
+
+corrplot(cramer_v, method = "color", type = "upper", tl.cex = 0.8, addCoef.col = "black", number.cex = 0.7, 
+         title = "Cramer's V giữa các biến phân loại", mar = c(0, 0, 2, 0))
+```
+# Tương tương quan biến số: 
+Tương quan mạnh nhất: Age và NumOfProducts (~-0.3).
+=> Không có mối quan hệ tuyến tính mạnh giữa các biến số, phù hợp để phân tích độc lập.
+
+# Tương quan biến phân loại: 
+Complain là yếu tố mạnh liên quan đến churn, cần chú ý trong phân tích tiếp theo.
+
+#2.3. Phân tích đơn biến: Xem phân phối từng biến để tìm mẫu hoặc bất thường liên quan đến churn
+# a. Phân tích biến phân loại 
+```{r}
+group1_cols <- c("Satisfaction.Score", "IsActiveMember", "Card.Type") 
+group2_cols <- c("HasCrCard", "Complain","Gender", "Exited", "Geography") 
+
+#Biểu đồ cột phân phối biến phân loại
+plots_group1 <- list()
+for (col in group1_cols) {
+  data_plot <- data_eda %>%
+    count(!!sym(col)) %>%
+    mutate(percentage = n / sum(n) * 100)
+  
+  p <- ggplot(data_plot, aes(x = as.factor(!!sym(col)), y = n, fill = as.factor(!!sym(col)))) +
+    geom_bar(stat = "identity") +
+    geom_text(aes(label = sprintf("%d (%.2f%%)", n, percentage)), vjust = 1, size = 2.75) +
+    ggtitle(paste("Phân phối", col)) +
+    xlab(col) +
+    ylab("Số lượng") +
+    theme_minimal() +
+    theme(legend.position = "none", text = element_text(size = 6))
+  plots_group1[[col]] <- p
+}
+
+#Biểu đồ cột phân phối biến số
+plots_group2 <- list()
+for (col in group2_cols) {
+  data_plot <- data_eda %>%
+    count(!!sym(col)) %>%
+    mutate(percentage = n / sum(n) * 100)
+  
+  p <- ggplot(data_plot, aes(x = as.factor(!!sym(col)), y = n, fill = as.factor(!!sym(col)))) +
+    geom_bar(stat = "identity") +
+    geom_text(aes(label = sprintf("%d (%.2f%%)", n, percentage)), vjust = 1, size = 2.75) +
+    ggtitle(paste("Phân phối", col)) +
+    xlab(col) +
+    ylab("Số lượng") +
+    theme_minimal() +
+    theme(legend.position = "none", text = element_text(size = 6))
+  plots_group2[[col]] <- p
+}
+
+grid.arrange(grobs = plots_group1, ncol = 2, top = "Biến phân loại - Đồng đều")
+grid.arrange(grobs = plots_group2, ncol = 2, top = "Biến phân loại - Không đồng đều")
+```
+***Biến phân loại:***
+# Nhóm 1 (Satisfaction.Score, IsActiveMember, Card.Type):
+Kết quả: Phân phối khá đồng đều, Tỷ lệ chênh lệch thấp, ít dấu hiệu bất thường.
+
+# Nhóm 2 (HasCrCard, Complain, Gender, Exited, Geography):
+Kết quả: Tỷ lệ chênh lệch cao. Đặc biệt ở các biến như Complain, Exited có tỷ lệ mất cân đối, cần phân tích sâu hơn.
+
+#b. Phân tích biến số 
+```{r}
+discrete_cols <- c("Tenure", "NumOfProducts") 
+continuous_cols <- c("CreditScore", "Age", "Balance", "EstimatedSalary", "Point.Earned") 
+plots_num <- list()
+
+#Biểu đồ cột phân tích biến số rời rạc
+plots_discrete <- list()
+for (col in discrete_cols) {
+  data_plot <- data_eda %>%
+    count(!!sym(col)) %>%
+    mutate(percentage = n / sum(n) * 100)
+  
+  p <- ggplot(data_plot, aes(x = as.factor(!!sym(col)), y = n, fill = as.factor(!!sym(col)))) +
+    geom_bar(stat = "identity") +
+    geom_text(aes(label = sprintf("%d (%.2f%%)", n, percentage)), vjust = -0.1, size = 2.5) +
+    ggtitle(paste("Phân phối", col)) +
+    xlab(col) +
+    ylab("Số lượng") +
+    theme_minimal() +
+    theme(legend.position = "none", text = element_text(size = 8))
+  plots_discrete[[col]] <- p
+}
+
+#Biểu đồ cột phân tích biến số liên tục 
+plots_continuous <- list()
+for (col in continuous_cols) {
+  p <- ggplot(data_eda, aes(x = !!sym(col))) +
+    geom_histogram(bins = 30, fill = "skyblue", color = "black") +
+    ggtitle(paste("Phân phối", col)) +
+    xlab(col) +
+    ylab("Số lượng") +
+    theme_minimal() +
+    theme(text = element_text(size = 8))
+  plots_continuous[[col]] <- p
+}
+
+grid.arrange(grobs = plots_discrete, ncol = 1, top = "Phân phối biến rời rạc (Bar chart)")
+grid.arrange(grobs = plots_continuous, ncol = 3, top = "Phân phối biến liên tục (Histogram)")
+```
+***Biến số:***
+# Biến rời rạc (Tenure, NumOfProducts):
+Kết quả: Phân phối hợp lý, không có giá trị bất thường rõ rệt.
+
+# Biến liên tục (CreditScore, Age, Balance, EstimatedSalary, Point.Earned):
+Kết quả: Balance có nhiều giá trị 0, cần xem xét thêm khi phân tích churn.
+
+#2.4 Phân tích hai biến: Xem mối quan hệ giữa các biến và Exited
+```{r}
+categorical_cols <- c("Geography", "Gender", "HasCrCard", "IsActiveMember", "Card.Type", "Complain", "Satisfaction.Score")
+plots_cat <- list()
+
+# Chú thích biểu đồ cột x=0 (không), x=1 (có), màu "Đỏ" = Nhóm rời, , màu "Xanh" = Nhóm ở lại 
+# Chú thích Boxplot x=0 (không), x=1 (có), màu "Đỏ" = Nhóm rời, , màu "Xanh" = Nhóm ở lại
+
+#Biểu đồ cột phân tích biến phân loại với Exited
+for (col in categorical_cols) {
+  data_plot <- data_eda %>%
+    count(!!sym(col), Exited) %>%
+    group_by(!!sym(col)) %>%
+    mutate(percentage = n / sum(n) * 100)
+  
+  p <- ggplot(data_plot, aes(x = as.factor(!!sym(col)), y = n, fill = as.factor(Exited))) +
+    geom_bar(stat = "identity", position = "fill") +
+    scale_fill_brewer(palette = "Set1", labels = c("Không churn", "Churn")) +
+    geom_text(aes(label = sprintf("%.2f%%", percentage)), position = position_fill(vjust = 0.5), size = 2.5) +
+    ggtitle(paste("Churn theo", col)) +
+    xlab(col) + 
+    ylab("Tỷ lệ") +
+    theme_minimal() +
+    theme(legend.position = "none", text = element_text(size = 8))
+  plots_cat[[col]] <- p
+}
+
+#Boxplot phân tích biến phân loại với Exited
+for (col in numerical_cols) {
+  p <- ggplot(data_eda, aes(x = as.factor(Exited), y = !!sym(col), fill = as.factor(Exited))) +
+    geom_boxplot() +
+    scale_fill_brewer(palette = "Set1", labels = c("Không churn", "Churn")) +
+    ggtitle(paste(col, "theo Exited")) +
+    xlab("Exited") +
+    ylab(col) +
+    theme_minimal() +
+    theme(legend.position = "none", text = element_text(size = 8))
+  plots_num[[col]] <- p
+}
+
+grid.arrange(grobs = plots_cat, ncol = 3, top = "Phân tích biến phân loại vs Exited")
+grid.arrange(grobs = plots_num, ncol = 3, top = "Phân tích biến số vs Exited")
+```
+***Biến phân loại vs Exited:***
+- Complain: ~99% khách hàng phàn nàn (Complain=1) churn (Exited=1).
+- Geography: Germany có tỷ lệ churn cao (~32%) so với France (~16%) và Spain (~17%).
+- Gender: Nữ churn cao hơn nam (~25% vs ~16%).
+=> Complain là yếu tố dự báo mạnh cho churn; Geography và Gender cũng có ảnh hưởng đáng kể.
+
+***Biến số vs Exited:***
+- Boxplot cho thấy Age và Balance là các yếu tố ảnh hưởng đến churn
+
+#2.5 : Thống kê suy diễn
+```{r}
+# 1. Kiểm định t-test cho biến số (từ histogram)
+cat("\n1. Kiểm định t-test cho biến số vs Exited:\n")
+numerical_cols <- c("Age", "Balance")
+for (col in numerical_cols) {
+  cat(sprintf("\nt-test cho %s vs Exited:\n", col))
+  t_test <- t.test(data_eda[[col]] ~ data_eda$Exited, var.equal = FALSE)
+  print(t_test)
+}
+
+# 2. Kiểm định chi-square cho biến phân loại (từ bar chart)
+cat("\n2. Kiểm định chi-square cho biến phân loại vs Exited:\n")
+categorical_cols <- c("Complain", "Geography", "Gender")
+for (col in categorical_cols) {
+  cat(sprintf("\nChi-square cho %s vs Exited:\n", col))
+  chi_square <- chisq.test(table(data_eda[[col]], data_eda$Exited))
+  print(chi_square)
+}
+```
+
+***Kiểm định t-test (biến số vs Exited):***
+# Kết quả:
+- Age: p-value < 0.001, khác biệt trung bình tuổi giữa churn và không churn có ý nghĩa thống kê.
+- Balance: p-value < 0.001, số dư trung bình khác biệt đáng kể.
+=> Age và Balance là các yếu tố số quan trọng liên quan đến churn.
+
+***Kiểm định chi-square (biến phân loại vs Exited):***
+# Kết quả:
+- Complain: p-value < 0.001, mối quan hệ rất mạnh với Exited.
+- Geography, Gender: p-value < 0.05, có mối quan hệ đáng kể với Exited.
+=> Complain, Geography, Gender đều có ảnh hưởng thống kê đến churn.
+
+#Tổng kết: Phân tích cho thấy Complain là yếu tố mạnh nhất dự báo churn, tiếp theo là Age, Balance, Geography, và Gender.  
