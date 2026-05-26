@@ -1,15 +1,3 @@
-Được, **file báo cáo này đủ để viết README cơ bản rồi**. Trong báo cáo đã có đủ các phần quan trọng: tên đề tài về phân tích hành vi và dự đoán churn khách hàng ngân hàng, nhóm thực hiện, mục tiêu nghiên cứu, quy trình tiền xử lý dữ liệu, EDA, thống kê suy diễn, phân cụm, mô hình Decision Tree/Random Forest, SMOTE và đề xuất chiến lược kinh doanh. 
-
-Nhưng để README “đẹp và chạy được trên GitHub” thì bạn nên cung cấp thêm 4 thứ này:
-
-* File chính để chạy là file nào: `api.R`, `app.py`, `Test_data.ipynb` hay file R khác?
-* Project này là **R Markdown**, **Shiny app**, **API R**, hay có cả **Python app.py**?
-* Các thư viện đã dùng: ví dụ `tidyverse`, `ggplot2`, `caret`, `randomForest`, `rpart`, `DMwR`, `pROC`…
-* Cách chạy project: ví dụ mở RStudio knit `.Rmd`, hay chạy `Rscript api.R`, hay chạy `python app.py`.
-
-Tạm thời bạn có thể dùng README này trước:
-
-````markdown
 # R_Project - Phân tích và Dự đoán Churn Khách hàng Ngân hàng
 
 ## Giới thiệu
